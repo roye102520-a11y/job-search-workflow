@@ -1,0 +1,4 @@
+# Only the synthetic static preview is needed by Vercel.
+/*
+!public
+!vercel.json
