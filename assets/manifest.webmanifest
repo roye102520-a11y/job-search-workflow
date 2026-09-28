@@ -1,0 +1,10 @@
+{
+  "name": "Career Studio 求职工作台",
+  "short_name": "Career Studio",
+  "lang": "zh-CN",
+  "start_url": "/#overview",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f5f5f7",
+  "description": "把真实经历、岗位偏好、简历、投递和面试复盘连接起来。"
+}

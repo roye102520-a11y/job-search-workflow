@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "path": "career-evidence-bank.md",
+      "sha256": "884fcbab2944fc404d4087dfce39b350420bcbd886a33f93e33d24ce7d6d4c24"
+    },
+    {
+      "path": "coaching-state.md",
+      "sha256": "90169caaefe3dd247e172942ee59a37a8fdde02d7c1e970c378ed19eb62007b0"
+    }
+  ],
+  "person": {
+    "name_zh": "示例候选人",
+    "name_en": "Example Candidate",
+    "location_zh": "南京，中国",
+    "location_en": "Nanjing, China",
+    "phone": "13800000000",
+    "email": "candidate@example.test",
+    "portfolio": "https://portfolio.example.test",
+    "education_zh": "示例大学｜公共文化管理｜本科｜2017.09–2021.06",
+    "education_en": "Example University | Public Culture Management, undergraduate education | Sep 2017-Jun 2021",
+    "languages_zh": "英语：修读大学英语课程；工作能力待核实",
+    "languages_en": "English: university coursework; professional proficiency unverified"
+  },
+  "excluded_claims": [
+    "通过率提升15%",
+    "培训时间缩短30%",
+    "生产级模型部署"
+  ],
+  "unconfirmed": [
+    "英文姓名、机构与职务的官方写法",
+    "专业英语工作能力",
+    "医疗、金融科技或电商行业经验"
+  ],
+  "entries": [
+    {
+      "id": "work-beacon",
+      "kind": "work",
+      "title_zh": "Beacon Education｜社区课程运营",
+      "title_en": "Beacon Education | Community Course Operations",
+      "employment_zh": "全职",
+      "employment_en": "Full-time",
+      "dates": "2024.01-2024.10",
+      "source_ref": "career-evidence-bank.md#beacon",
+      "tags": ["user-operations"],
+      "family_priorities": {"user-operations": 1, "ai-content-operations": 0, "implementation-support": 0, "product-operations": 0},
+      "bullets": [
+        {
+          "id": "support-segmentation",
+          "anchor": true,
+          "zh": "协助组织 27 场公共课程活动，按首次参与和复访分组，为 124 名报名者发送不同的行前提醒与课后资料。",
+          "en": "Helped organize 27 public courses and grouped 124 registrants by first-time or returning participation to send relevant pre-event reminders and follow-up materials.",
+          "tags": ["user-operations"],
+          "keywords": ["用户分层", "活动报名", "用户服务", "生命周期", "user segmentation", "participant support", "customer service"]
+        },
+        {
+          "id": "support-coordination",
+          "zh": "汇总签到与反馈记录，与课程策划及场地团队调整下一轮活动说明，并跟进资料更新。",
+          "en": "Summarized attendance and feedback records, coordinated updates to the next event brief with course planners and venue staff, and followed up on revised materials.",
+          "tags": ["user-operations", "implementation-support", "product-operations"],
+          "keywords": ["数据整理", "需求反馈", "跨团队协作", "进度跟进", "coordination", "feedback", "progress tracking"]
+        }
+      ]
+    },
+    {
+      "id": "work-northstar",
+      "kind": "work",
+      "title_zh": "Northstar Learning｜社区活动服务",
+      "title_en": "Northstar Learning | Community Program Support",
+      "employment_zh": "全职",
+      "employment_en": "Full-time",
+      "dates": "2022.03-2023.10",
+      "source_ref": "career-evidence-bank.md#northstar",
+      "tags": ["user-operations", "implementation-support"],
+      "family_priorities": {"user-operations": 2, "ai-content-operations": 0, "implementation-support": 3, "product-operations": 1},
+      "bullets": [
+        {
+          "id": "lifecycle-support",
+          "anchor": true,
+          "zh": "协调 12 个社区活动点的报名与到场咨询，记录 86 条参与者问题，并与志愿讲师和场地方核对安排。",
+          "en": "Coordinated registration and arrival enquiries across 12 community venues, recorded 86 participant questions, and confirmed arrangements with volunteer facilitators and venue staff.",
+          "tags": ["user-operations", "implementation-support"],
+          "keywords": ["参与者对接", "用户生命周期", "多方协调", "服务问题", "customer lifecycle", "stakeholder coordination", "client communication"]
+        },
+        {
+          "id": "feedback-loop",
+          "zh": "归类报名页面报错和场地指引不清等反馈，用工单记录责任人、处理状态与回访结果。",
+          "en": "Categorized reports of registration-page errors and unclear venue directions, then used tickets to track owners, status, and follow-up outcomes.",
+          "tags": ["user-operations", "implementation-support", "product-operations"],
+          "keywords": ["用户反馈", "需求分析", "工单", "问题闭环", "用户体验", "feedback analysis", "requirements", "issue tracking"]
+        },
+        {
+          "id": "operation-guides",
+          "zh": "将重复出现的报名系统问题整理成图文操作卡，供参与者和活动点志愿者查阅。",
+          "en": "Turned recurring registration-system issues into illustrated instruction cards for participants and venue volunteers.",
+          "tags": ["user-operations", "implementation-support", "ai-content-operations"],
+          "keywords": ["使用指南", "操作手册", "图文指引", "文档", "培训资料", "user guides", "documentation", "illustrated instructions", "training materials"]
+        }
+      ]
+    },
+    {
+      "id": "work-atlas",
+      "kind": "work",
+      "title_zh": "Atlas Content Lab｜展馆服务内容处理（职责描述）",
+      "title_en": "Atlas Content Lab | Visitor-Service Content Processing",
+      "employment_zh": "兼职；职责描述",
+      "employment_en": "Part-time; functional role description",
+      "dates": "2021.08-2022.05",
+      "source_ref": "career-evidence-bank.md#atlas",
+      "tags": ["ai-content-operations"],
+      "family_priorities": {"user-operations": -2, "ai-content-operations": 3, "implementation-support": -2, "product-operations": -1},
+      "bullets": [
+        {
+          "id": "content-structured-documents",
+          "anchor": true,
+          "zh": "将 29 份展览设备手册按型号、故障类型和操作步骤清洗并结构化，供活动志愿者查询。",
+          "en": "Cleaned and structured 29 exhibition-equipment manuals by model, issue type, and operating step for volunteer reference.",
+          "tags": ["ai-content-operations"],
+          "keywords": ["文档清洗", "结构化", "质量检查", "设备手册", "数据处理", "data cleaning", "structured content", "quality checks", "document processing"]
+        },
+        {
+          "id": "content-qa-versioning",
+          "anchor": true,
+          "zh": "根据展馆服务问题编写 72 条问答条目，标记复核状态并维护内容版本。",
+          "en": "Wrote 72 visitor-service question-and-answer entries, marked review status, and maintained content versions.",
+          "tags": ["ai-content-operations", "product-operations"],
+          "keywords": ["知识库", "问答对", "内容复核", "版本管理", "内容运营", "knowledge base", "question-answer pairs", "content review", "version management"]
+        },
+        {
+          "id": "content-mixed-document-processing",
+          "zh": "核对扫描手册的 OCR 识别结果与原始页面，修正图文说明中设备编号的误识别。",
+          "en": "Checked OCR output from scanned manuals against original pages and corrected misread equipment identifiers in illustrated instructions.",
+          "tags": ["ai-content-operations", "implementation-support"],
+          "keywords": ["OCR", "图文解析", "原始资料", "内容整理", "识别校对", "document parsing", "source materials", "content organization"]
+        }
+      ]
+    },
+    {
+      "id": "project-reflection",
+      "kind": "project",
+      "title_zh": "Reflection Lab｜社区活动复盘助手",
+      "title_en": "Reflection Lab | Community Event Retrospective Assistant",
+      "employment_zh": "个人项目；AI 辅助开发",
+      "employment_en": "Personal project; independently advanced with AI-assisted development",
+      "dates": "2025.01-2025.04",
+      "source_ref": "coaching-state.md#reflection",
+      "tags": ["ai-content-operations", "product-operations"],
+      "family_priorities": {"user-operations": 0, "ai-content-operations": 3, "implementation-support": 1, "product-operations": 1},
+      "bullets": [
+        {
+          "id": "reflection-product-boundaries",
+          "zh": "设计社区活动议题记录、追问与历史查询流程，限制模型替志愿者作出判断，并约束输出结构。",
+          "en": "Designed agenda capture, follow-up, and history lookup for community-event retrospectives, limiting automated judgments about volunteers and defining structured output.",
+          "tags": ["product-operations", "ai-content-operations"],
+          "keywords": ["产品边界", "用户路径", "结构化输出", "AI应用", "需求", "product scope", "user journey", "structured output"]
+        },
+        {
+          "id": "reflection-offline-evaluation",
+          "zh": "用三类会议场景编写 18 条离线样本，检查记录完整性、来源表述和遗漏事项；项目停留在本地原型阶段。",
+          "en": "Prepared 18 offline examples across three meeting scenarios to check completeness, source wording, and missing action items; the project remained a local prototype.",
+          "tags": ["ai-content-operations", "product-operations", "implementation-support"],
+          "keywords": ["离线评测", "测试", "质量检查", "失败场景", "输出质量", "offline evaluation", "testing", "quality assurance", "iteration"]
+        }
+      ]
+    },
+    {
+      "id": "project-compass",
+      "kind": "project",
+      "title_zh": "Compass Knowledge｜社区场地比较工具",
+      "title_en": "Compass Knowledge | Community Venue Comparison Tool",
+      "employment_zh": "个人项目；AI 辅助开发",
+      "employment_en": "Personal project; independently advanced with AI-assisted development",
+      "dates": "2025.05-2025.08",
+      "source_ref": "career-evidence-bank.md#compass",
+      "tags": ["product-operations", "user-operations"],
+      "family_priorities": {"user-operations": 1, "ai-content-operations": 0, "implementation-support": 0, "product-operations": 1},
+      "bullets": [
+        {
+          "id": "catalog-information-architecture",
+          "zh": "围绕无障碍设施、开放时段和交通方式设计社区场地筛选与比较路径，并用分类标签组织资料。",
+          "en": "Designed venue filtering and comparison around accessibility, opening hours, and transport options, organizing information with categories and tags.",
+          "tags": ["product-operations", "user-operations"],
+          "keywords": ["用户路径", "信息架构", "分类", "筛选", "场地信息", "information architecture", "user journey", "filtering"]
+        },
+        {
+          "id": "catalog-structured-knowledge",
+          "zh": "整理 74 张社区场地信息卡和 12 篇使用指南，通过分类、筛选与对比页呈现演示资料。",
+          "en": "Prepared 74 community-venue cards and 12 usage guides, presenting demonstration data through categories, filters, and comparison pages.",
+          "tags": ["ai-content-operations", "product-operations"],
+          "keywords": ["内容结构化", "数据整理", "知识库", "分类标签", "比较", "content organization", "structured data", "knowledge base", "comparison"]
+        },
+        {
+          "id": "catalog-risk-boundaries",
+          "zh": "配置本地 CSV 与 JSON 数据源及加载失败提示，标明场地信息仅供演示、需要自行核实。",
+          "en": "Configured local CSV and JSON data sources with loading-failure notices, labeling venue details as demonstration data requiring independent verification.",
+          "tags": ["implementation-support", "product-operations", "ai-content-operations"],
+          "keywords": ["降级", "数据源", "风险提示", "产品边界", "异常处理", "fallback", "data sources", "risk notices", "product boundaries"]
+        }
+      ]
+    },
+    {
+      "id": "project-archive",
+      "kind": "project",
+      "title_zh": "Archive Learning｜公开档案导览学习应用",
+      "title_en": "Archive Learning | Public Archive Learning Application",
+      "employment_zh": "个人项目；AI 辅助开发",
+      "employment_en": "Personal project; independently advanced with AI-assisted development",
+      "dates": "2025.09-2025.11",
+      "source_ref": "coaching-state.md#archive",
+      "tags": ["ai-content-operations", "product-operations"],
+      "family_priorities": {"user-operations": 0, "ai-content-operations": 1, "implementation-support": 1, "product-operations": 1},
+      "bullets": [
+        {
+          "id": "archive-learning-path",
+          "zh": "围绕公开建筑档案设计资料检索与练习路径，准备 33 张资料卡和 9 道带来源的练习题。",
+          "en": "Designed a source-led study path for public architecture archives, preparing 33 reference cards and nine cited practice questions.",
+          "tags": ["product-operations", "ai-content-operations"],
+          "keywords": ["内容产品", "学习路径", "内容组织", "需求", "练习", "learning journey", "content organization", "structured questions"]
+        },
+        {
+          "id": "archive-rag-citations",
+          "zh": "搭建本地资料检索原型，按问题相似度排序并最多展示三条来源引用；没有生产环境用户。",
+          "en": "Built a local retrieval prototype that ranked archive items by question similarity and displayed up to three source citations; it had no production users.",
+          "tags": ["ai-content-operations", "product-operations"],
+          "keywords": ["RAG", "知识库问答", "引用来源", "向量检索", "资料检索", "retrieval", "citations", "source-based answers"]
+        }
+      ]
+    }
+  ]
+}

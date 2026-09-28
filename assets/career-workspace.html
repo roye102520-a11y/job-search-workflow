@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Career Studio · 求职全流程工作台</title><meta name="theme-color" content="#f5f5f7"><link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="career-workspace.css">
+  <script nonce="__CSP_NONCE__" src="career-workspace.js" defer></script>
+</head>
+<body>
+<header class="global"><a href="#overview" class="brand" aria-label="Career Studio 首页">Career Studio<span>个人求职空间</span></a><div class="global-actions"><span class="local">本机资料</span><button id="install-app" class="quiet" hidden>安装到手机</button><button id="refresh" class="quiet">刷新资料 ↻</button></div></header>
+<nav class="navigation" aria-label="求职工作区">
+  <button data-panel="overview" aria-current="page">总览</button><button data-panel="assets">素材与作品集</button><button data-panel="resume">JD 简历</button><button data-panel="applications">投递进度</button><button data-panel="interview">面试复盘</button><button data-panel="website">个人网站</button>
+</nav>
+<main>
+  <div id="notice" class="notice" role="status" aria-live="polite">正在读取你的求职资料…</div>
+  <section data-section="overview">
+    <div class="hero"><p class="eyebrow">YOUR NEXT CHAPTER</p><h1>每一步准备。<br><span>都成为下一次机会。</span></h1><p class="lead">把经历变成证据，把证据变成作品。<br>从第一份简历，到面试后的下一次进步。</p><div class="hero-actions"><button class="primary" data-go="resume">开始一份 JD 简历 <span>↗</span></button><button class="text-action" data-go="assets">整理我的作品集 →</button></div><p id="owner" class="caption"></p></div>
+    <div class="section-title"><h2>一条连贯的求职路径。</h2><span class="caption">点选阶段，继续准备</span></div>
+    <div class="journey" aria-label="完整求职流程">
+      <button data-go="assets"><span class="step">01</span><strong>真实经历</strong><small>事实 · 贡献 · 证据</small></button><button data-go="assets"><span class="step">02</span><strong>作品与网站</strong><small>问题 · 决策 · 交付</small></button><button data-go="resume"><span class="step">03</span><strong>岗位简历</strong><small>JD · 选材 · 表达</small></button><button data-go="applications"><span class="step">04</span><strong>投递与跟进</strong><small>材料 · 回执 · 版本</small></button><button data-go="interview"><span class="step">05</span><strong>面试与复盘</strong><small>追问 · 改进 · 回写</small></button>
+    </div>
+    <div class="dashboard-grid"><article class="surface chart-card"><div class="section-title"><h3>现有材料，支持哪些方向？</h3><span class="caption">事实条目数</span></div><div id="evidence-chart" class="bar-chart"></div><p class="caption">按事实库标签计数；一条事实可支持多个方向，不代表能力分或录取概率。</p></article><article class="surface stage-card"><p class="eyebrow">APPLICATION STATUS</p><div class="big-number" id="confirmed-count">—</div><h3>有事件记录的确认投递</h3><div id="stage-chart" class="stage-chart"></div><p class="caption">下方为当前阶段分布；准备稿与合成验收不计作投递。</p></article></div>
+    <div class="section-title"><h2>现在，最值得推进的事。</h2><span class="caption">来自你的辅导记录</span></div><ol id="next-steps" class="next-steps"></ol>
+    <div class="section-title"><h2>工具能力，清楚可见。</h2></div><div class="capabilities"><div><span class="dot"></span><strong>JD 简历生成</strong><p>四类方向 · 中英文 · 独立版本</p></div><div><span class="dot"></span><strong>作品集与网站草稿</strong><p>选取项目 · 复用证据 · 本地预览</p></div><div><span class="dot"></span><strong>面试记录与自评</strong><p>真实面试 / 练习分开 · 保存改进</p></div><div><span class="dot amber"></span><strong>邮箱与飞书</strong><p>连接状态按案例核验 · 由 Codex 执行</p></div><div><span class="dot amber"></span><strong>官网网申</strong><p>按岗位授权执行 · 未完成真实提交验收</p></div><div><span class="dot amber"></span><strong>方向效果比较</strong><p>统计脚本已具备 · 等待真实结果</p></div></div>
+  </section>
+  <section data-section="assets" hidden>
+    <div class="page-heading"><p class="eyebrow">EVIDENCE & PORTFOLIO</p><h1>让经历，<br><span>有据可循。</span></h1><p class="lead">选取项目，组织成可讲清楚的作品集。真实用户验证和贡献边界，始终保留。</p></div>
+    <form id="material-form" class="surface review-form"><h3>从你提供的简历与作品集开始</h3><p>本地提取正文和摘要摘录，再由 Codex 综合整理经历、项目与待确认项。</p><div class="form-grid"><label>材料类型<select id="material-kind"><option value="resume">简历</option><option value="portfolio">作品集</option></select></label><label>选择文件（单份 ≤ 6 MB）<input id="material-file" type="file" accept=".pdf,.docx,.md,.txt" required></label></div><button class="primary" type="submit">导入并提取材料</button><p id="material-status" role="status" class="caption"></p><button class="text-action" type="button" data-copy="请读取当前案例 material-inbox 中待复核的简历与作品集原文，并结合既有事实库综合总结职业定位、工作经历、项目故事、证据和缺口。逐项标注来源与冲突，保留最新本人确认；未经确认的新数字与个人贡献不得进入对外材料。更新 materials-summary.md，确认事实后更新证据库与对应缓存摘要。">复制材料综合整理指令 →</button></form><div id="material-history" class="history-list"></div>
+    <label class="surface">网站使用哪份简历的选材？<select id="portfolio-resume"><option value="">当前完整事实库</option></select><p class="caption">沿用你的作品集设计：米白底、黑色细线、大标题和彩色项目区。岗位版仅使用该简历选中的事实；请选择对应版本中保留的项目。</p></label>
+    <div class="section-title"><h2>你的项目库</h2><button class="primary" id="build-portfolio">生成所选项目作品集</button></div><div id="project-gallery" class="project-gallery"></div><div id="portfolio-result" role="status" class="notice" hidden></div><div id="portfolio-history" class="history-list"></div>
+    <div class="section-title"><h2>作品集叙事</h2><span class="caption">生成内容不会补造缺失事实</span></div><div class="storyline"><span>用户问题</span><span>本人职责</span><span>方案取舍</span><span>交付证据</span><span>验证与反思</span></div>
+    <div class="dashboard-grid"><article class="surface"><h3>事实库与定位</h3><div id="source-documents" class="resource-list"></div></article><article class="surface"><h3>仍需补齐的证据</h3><div id="unconfirmed" class="resource-list"></div></article></div>
+  </section>
+  <section data-section="resume" hidden>
+    <div class="page-heading compact"><p class="eyebrow">ONE JD. ONE RESUME.</p><h1>让岗位，<span>读懂你的价值。</span></h1><p class="lead">粘贴 JD 正文 → 识别方向与关键词 → 选取真实经历 → 生成一页审阅稿。</p></div>
+    <a class="text-action" href="/studio" target="_blank" rel="noopener">在独立窗口打开简历编辑器 ↗</a><iframe id="studio-frame" title="JD 定制简历编辑器" class="studio-frame"></iframe>
+    <div class="section-title"><h2>材料历史</h2><label class="toggle"><input type="checkbox" id="include-tests">包含合成验收</label></div><div id="history" class="history-list"></div><p class="caption">此处展示材料生成历史；同一岗位可以有多个审阅版本，不能据此统计投递次数。</p>
+    <div class="surface prompt-playbook"><div class="section-title"><h2>七视角简历审计</h2><span class="caption">复制后粘贴到当前 JD 对话</span></div><p>不要只让 AI“润色简历”。按招聘、成就、ATS、挑刺、职业轨迹、面试和终审分别检查同一份事实。</p><div class="prompt-grid"><button class="secondary" data-prompt-key="recruiter">1 高级招聘分析</button><button class="secondary" data-prompt-key="achievement">2 成就提炼</button><button class="secondary" data-prompt-key="critique">3 招聘挑刺</button><button class="secondary" data-prompt-key="ats">4 ATS 优化</button><button class="secondary" data-prompt-key="trajectory">5 职业轨迹</button><button class="secondary" data-prompt-key="coach">6 面试教练</button><button class="secondary" data-prompt-key="final">7 招聘终审</button></div><p id="prompt-status" class="caption" role="status"></p></div>
+    <details class="surface"><summary>原有 Word 简历版本</summary><div id="resume-versions" class="resource-list"></div></details>
+  </section>
+  <section data-section="applications" hidden>
+    <div class="page-heading"><p class="eyebrow">APPLICATIONS</p><h1>进度，<span>有迹可循。</span></h1><p class="lead">先勾选岗位偏好，再让简历证据参与推荐。推荐理由和官网状态分开显示。</p></div>
+    <form id="preference-form" class="surface preference-form"><div class="section-title"><h2>岗位偏好</h2><span class="caption">参考大厂招聘的多选筛选</span></div><div class="preference-grid"><fieldset><legend>岗位类别</legend><div id="preference-categories" class="check-grid"></div></fieldset><fieldset><legend>工作地点</legend><div id="preference-locations" class="check-grid"></div></fieldset><fieldset><legend>补充诉求</legend><div id="preference-requests" class="check-grid"></div></fieldset></div><button class="primary" type="submit">保存偏好并刷新推荐</button><span id="preference-status" class="caption" role="status"></span></form>
+    <div class="section-title"><h2>简历匹配推荐</h2><span class="caption">基于事实标签与已勾选偏好</span></div><div id="recommendations" class="recommendation-list"></div>
+    <div class="surface ai-assist"><div><h3>可选：DeepSeek 推荐摘要</h3><p>只会发送当前偏好、推荐岗位标题和已展示的匹配理由；不会发送邮箱、电话或原始简历。需要在本机配置 <code>DEEPSEEK_API_KEY</code>。</p></div><button class="secondary" id="ai-recommend" type="button">生成摘要</button><p id="ai-recommend-status" class="caption" role="status"></p><div id="ai-recommend-result" class="ai-result" hidden></div></div>
+    <div id="application-board" class="application-board"></div>
+    <div class="surface"><h3>推荐公司与社招短名单</h3><div id="company-shortlist"></div><button class="secondary" data-copy="请使用 job-search-workflow，先读当前案例 search-preferences.json，排除曾任职公司，按本人兴趣在公司官网检索社会招聘。结合简历事实逐条核验硬门槛，生成公司推荐理由、JD 原文、缺口、独立简历和待投队列。沿用明确投递授权，未知必填事实先补问；每次外部执行冻结材料并核验回执，遇到验证码或签署条款由本人接手，不把未核实状态记为成功。">复制官网社招执行指令</button><p class="caption">官网搜索与自动填写由 Codex 浏览器执行；此按钮只复制任务，不会在后台投递。</p></div>
+    <div class="surface integration"><div><h3>投递与同步如何衔接</h3><p>核对资料 → 冻结提交版 → 官网或邮件执行 → 核验回执 → 更新本地记录与飞书。</p><p class="caption">当前页面读取台账。发信、网申提交及飞书写入通过 Codex 与已连接工具执行，页面不会自动触发。</p></div><button class="secondary" data-copy="请使用 job-search-workflow，检查当前案例的待投岗位、未决必需项和实际提交材料。按已有授权范围推进投递与飞书同步；用真实回执更新记录，无法核实时保留未知状态。">复制投递工作指令</button></div>
+    <div class="surface"><h3>分方向与版本复盘</h3><p>按实际提交版本统计，默认最近 90 天、至少观察 14 天。未确认投递与等待中的草稿不会进入分母。</p><p id="outcome-note" class="caption"></p><div id="direction-report" class="resource-list"></div></div>
+  </section>
+  <section data-section="interview" hidden>
+    <div class="page-heading"><p class="eyebrow">REFLECT. REFINE. REPEAT.</p><h1>把每次回答，<br><span>变成下一次进步。</span></h1><p class="lead">从实际 JD 和提交版出发，记录问题、回答与反馈。练习记录不会变成工作成果。</p></div>
+    <div class="dashboard-grid"><article class="surface"><h3>一次，只练清楚一个问题。</h3><div class="ladder"><div><span>01</span><p>你具体完成了什么？<small>个人贡献与责任边界</small></p></div><div><span>02</span><p>为什么选择这个方案？<small>备选方案、判断依据与取舍</small></p></div><div><span>03</span><p>什么证据说明有效？<small>指标口径、验证方法与反思</small></p></div></div><button class="secondary" data-copy="请使用 job-interview-coach-cn 和当前求职案例，从目标 JD、实际提交简历与最新复盘中选一个问题，一次问一题。优先追问个人贡献、关键取舍和成果证据；不要把示范答案写入事实库。">复制面试训练指令</button></article><article class="surface"><h3>最近一次记录的自评</h3><div id="review-chart" class="bar-chart"></div><p class="caption">自评 1–5；未填写的维度保留为空，不代表系统评定或招聘方评分。</p></article></div>
+    <div class="section-title"><h2>保存一条复盘</h2><span class="caption">保存到当前案例，下次可继续</span></div>
+    <form id="review-form" class="surface review-form">
+      <div class="form-grid"><label>记录类型<select name="kind"><option value="practice">模拟练习</option><option value="interview">真实面试（本人记录）</option></select></label><label>日期<input type="date" name="date" required></label><label>公司<input name="company" placeholder="可留空"></label><label>岗位<input name="role" placeholder="例如：产品运营"></label><label class="wide">关联投递记录<select name="job_key" id="review-job"><option value="">暂不关联</option></select></label><label class="wide">面试问题<textarea name="question" required placeholder="面试官具体问了什么？"></textarea></label><label class="wide">我的回答<textarea name="answer" placeholder="保留你的真实回答，而非事后美化版本"></textarea></label><label class="wide">反馈与发现<textarea name="feedback" placeholder="区分对方原话、本人判断与未知信息"></textarea></label><label class="wide">下一步改进<textarea name="next_action" required placeholder="下一轮只优先改善哪一件事？"></textarea></label></div><div id="score-inputs" class="score-inputs"></div><button class="primary" type="submit">保存本次复盘</button><p id="review-status" role="status" class="caption"></p>
+    </form><div class="section-title"><h2>复盘记录</h2></div><div id="review-history" class="history-list"></div>
+  </section>
+  <section data-section="website" hidden>
+    <div class="page-heading"><p class="eyebrow">YOUR WORK. YOUR STORY.</p><h1>一个网站。<br><span>展示你的完整实践。</span></h1><p class="lead">简历负责让人快速看懂，作品集让人看见你的思考与交付。</p></div>
+    <div class="website-display"><div class="browser-dots"><i></i><i></i><i></i><span>Portfolio / 当前档案中的网站</span></div><div class="website-hero"><p class="eyebrow">DESIGNED AROUND YOUR WORK</p><h2>从用户问题，<br>到可交互的作品。</h2><div id="website-link"></div><p class="caption">网址来自已有档案；本页不声称完成线上可用性或部署验收。</p></div></div>
+    <div class="section-title"><h2>网站内容，从同一份证据出发。</h2></div><div class="storyline"><span>职业定位</span><span>精选项目</span><span>案例详情</span><span>成果与边界</span><span>联系入口</span></div>
+    <div class="dashboard-grid"><article class="surface"><h3>制作新的本地网站草稿</h3><p>在作品集页选择项目，即可同时生成内容稿与网站预览。默认不展示电话、邮箱；发布前由你检查。</p><button class="primary" data-go="assets">选择项目 →</button></article><article class="surface"><h3>更新已发布网站</h3><p>先对比职业定位、项目状态、简历版本和公开证据，再同步源代码与部署。</p><button class="secondary" data-copy="请依据当前职业证据库和作品集内容稿，检查我的个人网站项目。先定位源码，核对职业定位、项目状态、关键决策、公开证据和联系入口，给出本地可预览的更新；线上发布沿用本次授权范围，不能把生成草稿当成已发布。">复制网站更新指令</button><p class="caption">当前工作台不会自动修改或部署线上网站。</p></article></div>
+  </section>
+  <footer><span>Career Studio · 事实、材料与行动，持续连接。</span><span id="updated"></span></footer>
+</main>
+<style nonce="__CSP_NONCE__">.ai-assist{display:grid;grid-template-columns:1fr auto;gap:8px 20px;align-items:center;margin-bottom:34px}.ai-assist h3{margin:0 0 6px}.ai-assist p{margin:0;line-height:1.6}.ai-assist .caption{grid-column:1 / -1}.ai-result{grid-column:1 / -1;white-space:pre-wrap;background:#f5f5f7;border-radius:14px;padding:16px;line-height:1.7}.ai-assist code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}.prompt-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.prompt-grid .secondary{min-height:42px}@media(max-width:520px){.ai-assist{grid-template-columns:1fr}.ai-assist button{width:100%}.prompt-grid{display:grid;grid-template-columns:1fr}.prompt-grid .secondary{text-align:left}}</style>
+<dialog id="document-dialog"><div class="dialog-top"><h3 id="document-title"></h3><button id="close-document" class="quiet" aria-label="关闭资料预览">关闭 ×</button></div><pre id="document-content"></pre></dialog>
+</body>
+</html>
