@@ -73,7 +73,23 @@
     $('jd').addEventListener('input',updateCount);
     document.querySelectorAll('[data-sample]').forEach(button=>button.addEventListener('click',()=>{const sample=samples[button.dataset.sample];$('jd').value=sample.jd;$('title').value=sample.title;$('company').value='合成验收示例';$('url').value='';$('family').value='auto';updateCount();status('已填入合成 JD，适合检查生成流程；这不是正在招聘的真实岗位。');$('jd').focus();}));
     $('jd-form').addEventListener('submit',async event=>{event.preventDefault();if(busy||!token)return;const request={};for(const key of ['jd','title','company','url','language','family'])request[key]=$(key).value.trim();if(!request.jd){status('请先粘贴岗位 JD 正文。',true);$('jd').focus();return;}setBusy(true);status('正在读取本地证据并生成材料，请稍候。');try{const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','X-Local-Token':token},body:JSON.stringify(request)});const result=await response.json();if(!response.ok)throw new Error(result.error||'生成失败，请重试');displayResult(result);status(result.files&&result.files.pdf?'材料已生成。请先检查 PDF、事实与待核实项，再用于正式申请。':'匹配报告已生成。请先处理报告中的岗位方向或证据缺口。');}catch(error){status(error.message||'本地服务连接中断，请确认工作台仍在运行。',true);}finally{setBusy(false);}});
-    (async()=>{try{const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('无法连接本地工作台');const data=await response.json();token=data.token;for(const [value,label] of Object.entries(data.families||{})){const option=document.createElement('option');option.value=value;option.textContent=label;$('family').append(option);}setBusy(false);}catch(error){$('generate-label').textContent='本地服务未连接';status('请从正在运行的本地工作台地址打开本页，不要直接双击 HTML 文件。',true);}})();
+    let importedJD = null;
+    try {
+      const stored = sessionStorage.getItem('career-studio-jd-prefill');
+      if(stored){
+        sessionStorage.removeItem('career-studio-jd-prefill');
+        const value = JSON.parse(stored);
+        if(value && typeof value === 'object'){
+          for(const field of ['jd','title','company','url']){
+            if(typeof value[field] === 'string') $(field).value = value[field].slice(0, Number($(field).maxLength) || 100000);
+          }
+          importedJD = value.auto_generate === true && $('jd').value.trim() ? value : null;
+          updateCount();
+          status('已从本地岗位筛选导入。请核对 JD 与当前在招岗位；生成内容仍为审阅稿。');
+        }
+      }
+    }catch{status('岗位预填内容无法读取，请手动粘贴完整 JD。',true);}
+    (async()=>{try{const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('无法连接本地工作台');const data=await response.json();token=data.token;for(const [value,label] of Object.entries(data.families||{})){const option=document.createElement('option');option.value=value;option.textContent=label;$('family').append(option);}setBusy(false);if(importedJD){importedJD=null;$('jd-form').requestSubmit();}}catch(error){$('generate-label').textContent='本地服务未连接';status('请从正在运行的本地工作台地址打开本页，不要直接双击 HTML 文件。',true);}})();
   </script>
 </body>
 </html>

@@ -10,7 +10,7 @@ description: 基于已有职业证据库完成岗位筛选、按 JD 定制中英
 ## 开始与恢复
 
 1. 在当前项目定位 `job-search-cases/`，优先复用已有案例；多个候选人且无法判断时询问，不混用资料。没有案例才按 [数据约定](references/data-contract.md) 建立最小档案。
-2. 读取已有 `coaching-state.md`、画像，以及 `career-evidence-bank.md` 或 `experience-assets.md` 中当前任务相关内容。已存在的证据库就是事实源，不为适配模板复制一套。冲突以用户最新明确纠正为先，其他未解决冲突暂不进入最终材料。
+2. 读取已有 `user-requirements.md`（若存在）、`coaching-state.md`、画像，以及 `career-evidence-bank.md` 或 `experience-assets.md` 中当前任务相关内容。`user-requirements.md` 保留先前沟通中的需求、偏好与授权范围；新增决定追加日期和来源，不为压缩篇幅覆盖旧决定。已存在的证据库就是职业事实源，不为适配模板复制一套。冲突以用户最新明确纠正为先，其他未解决冲突暂不进入最终材料。
 3. 查看当前岗位包和投递记录，识别已完成步骤、缺失信息和下一动作。只补影响当前交付的缺口，不重新访谈全部经历。
 4. 沿用项目中的降权、排除和真实性约束。候选人的姓名、联系方式和个人限制保留在案例中，不写进可分享 Skill。
 
@@ -23,6 +23,7 @@ description: 基于已有职业证据库完成岗位筛选、按 JD 定制中英
 | 梳理经历、记录新成果 | 保存原始事实、来源、个人贡献、待确认项；再提炼能力 | [数据约定](references/data-contract.md) |
 | 导入简历与作品集、同款个人网站、全流程工作台 | 综合来源与冲突，用同一事实源生成作品集及网站草稿，保存面试复盘 | [工作台](references/career-workspace.md) |
 | 推荐公司、官网自动社招投递 | 按兴趣与雇主排除条件找社招，核验 JD，再按已有授权逐岗执行 | [社招筛选](references/social-recruitment.md) |
+| BOSS 岗位筛选、屏蔽公司、双休和招呼语 | 导入本人提供的岗位列表，在本地筛选与去重；完整 JD 接入专属简历，实际平台操作与回执分开记录 | [BOSS 辅助筛选](references/boss-assisted.md) |
 | 找岗位、判断能不能投 | 先硬条件，后逐项证据匹配；核验官网和岗位有效性 | [材料与匹配](references/materials.md) |
 | 改简历、英文简历、Cover Letter、邮件 | 为一个具体 JD 选择证据，产出独立版本和改动说明 | [材料与匹配](references/materials.md) |
 | 多视角简历审计、ATS 检查、成就提炼、终审 | 按七种专家角色逐项检查同一份事实与 JD；需要时保存审计结果 | [七视角提示库](references/prompt-playbook.md) |

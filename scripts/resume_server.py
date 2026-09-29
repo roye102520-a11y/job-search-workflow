@@ -130,6 +130,14 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json(200, career_workspace.snapshot(self.server.case))
             except (OSError, ValueError, TypeError) as error:
                 self.send_json(400, {'error': str(error)})
+        elif path == '/api/boss':
+            if not self.has_token():
+                return
+            try:
+                import boss_workspace
+                self.send_json(200, boss_workspace.state(self.server.case))
+            except (OSError, ValueError, TypeError) as error:
+                self.send_json(400, {'error': str(error)})
         elif path.startswith('/resources/'):
             try:
                 import career_workspace
@@ -181,7 +189,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/generate', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend'):
+        if endpoint not in ('/api/generate', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
             self.send_json(404, {'error': '接口不存在'})
             return
         if not self.has_token():
@@ -193,7 +201,8 @@ class StudioHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '-1'))
         except ValueError:
             length = -1
-        limit = 9 * 1024 * 1024 if endpoint.endswith('/material') else MAX_BODY
+        limit = (9 * 1024 * 1024 if endpoint.endswith('/material') else
+                 2 * 1024 * 1024 if endpoint == '/api/boss/screen' else MAX_BODY)
         if not 0 < length <= limit:
             self.send_json(413 if length > limit else 400, {'error': '请求为空或超过大小限制'})
             return
@@ -210,6 +219,9 @@ class StudioHandler(BaseHTTPRequestHandler):
                     raise ValueError('请求必须为对象')
                 if endpoint == '/api/ai/recommend':
                     self.ai_write(request)
+                    return
+                if endpoint.startswith('/api/boss/'):
+                    self.boss_write(endpoint, request)
                     return
                 self.workspace_write(endpoint, request)
                 return
@@ -271,6 +283,23 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json(400, {'error': str(error)})
         except Exception:
             self.send_json(500, {'error': '工作台保存未完成，请检查终端'})
+        finally:
+            self.server.generation_lock.release()
+
+    def boss_write(self, endpoint, request):
+        if not self.server.generation_lock.acquire(blocking=False):
+            self.send_json(409, {'error': '正在保存其他材料，请稍后重试'})
+            return
+        try:
+            import boss_workspace
+            action = {'/api/boss/settings': boss_workspace.save_settings,
+                      '/api/boss/screen': boss_workspace.screen_jobs,
+                      '/api/boss/blocked': boss_workspace.import_blocked}[endpoint]
+            self.send_json(200, action(self.server.case, request))
+        except (ValueError, OSError, TypeError, KeyError) as error:
+            self.send_json(400, {'error': str(error)})
+        except Exception:
+            self.send_json(500, {'error': 'BOSS 本地筛选未完成，请检查终端'})
         finally:
             self.server.generation_lock.release()
 

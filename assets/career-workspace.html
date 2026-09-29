@@ -42,6 +42,30 @@
     <div class="page-heading"><p class="eyebrow">APPLICATIONS</p><h1>进度，<span>有迹可循。</span></h1><p class="lead">先勾选岗位偏好，再让简历证据参与推荐。推荐理由和官网状态分开显示。</p></div>
     <form id="preference-form" class="surface preference-form"><div class="section-title"><h2>岗位偏好</h2><span class="caption">参考大厂招聘的多选筛选</span></div><div class="preference-grid"><fieldset><legend>岗位类别</legend><div id="preference-categories" class="check-grid"></div></fieldset><fieldset><legend>工作地点</legend><div id="preference-locations" class="check-grid"></div></fieldset><fieldset><legend>补充诉求</legend><div id="preference-requests" class="check-grid"></div></fieldset></div><button class="primary" type="submit">保存偏好并刷新推荐</button><span id="preference-status" class="caption" role="status"></span></form>
     <div class="section-title"><h2>简历匹配推荐</h2><span class="caption">基于事实标签与已勾选偏好</span></div><div id="recommendations" class="recommendation-list"></div>
+    <div class="surface boss-assist" id="boss-assist">
+      <div class="boss-assist-heading"><div><p class="eyebrow">BOSS · LOCAL ASSIST</p><h2>BOSS 岗位筛选台</h2><p>将你自己整理或导出的岗位列表放进来，先筛掉不合适的公司与条件，再把完整 JD 带入专属简历编辑器。</p></div><span class="boss-local-tag">仅本地处理</span></div>
+      <div class="boss-steps" aria-label="BOSS 辅助流程"><span><b>01</b> 设置条件</span><span><b>02</b> 导入岗位</span><span><b>03</b> 准备 JD 材料</span><span><b>04</b> 本人核对投递</span></div>
+      <form id="boss-settings-form" class="boss-form">
+        <div class="section-title"><h3>我的筛选条件</h3><span class="caption">保存到当前本地案例</span></div>
+        <div class="boss-field-grid">
+          <label>岗位关键词 <small>用逗号或换行分隔</small><input id="boss-keywords" placeholder="用户运营，AI 内容，客户成功"></label>
+          <label>工作城市 <small>留空表示不限</small><input id="boss-cities" placeholder="上海，杭州，苏州，远程"></label>
+          <label>公司规模 <small>用逗号或换行分隔；与岗位原文核对</small><input id="boss-company-sizes" placeholder="100-499人，1000-9999人"></label>
+          <label>公司在招岗位上限 <small>0 表示不限；未知会标记待核验</small><input id="boss-open-limit" type="number" min="0" max="100000" step="1" value="0"></label>
+          <label>月薪下限（K） <small>留空表示不限</small><input id="boss-salary-min" type="number" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="例如 7"></label>
+          <label>月薪上限（K） <small>留空表示不限</small><input id="boss-salary-max" type="number" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="例如 20"></label>
+        </div>
+        <div class="boss-options"><label class="boss-check"><input id="boss-weekends" type="checkbox"><span>优先双休</span></label><p class="caption">仅按导入的职位文字与标签判断；未写清的岗位进入待核验。</p></div>
+        <label class="boss-wide-label">自定义招呼语模板 <small>支持 {company}、{title}；最多 400 字，保存前请自己核对措辞</small><textarea id="boss-greeting" maxlength="400" placeholder="您好，我关注到贵司的 {title} 岗位，希望进一步了解岗位要求。"></textarea></label>
+        <label class="boss-check boss-confirm"><input id="boss-greeting-confirmed" type="checkbox"><span>我已检查并确认这段招呼语</span></label>
+        <div class="boss-actions"><button class="primary" type="submit">保存筛选条件</button><span id="boss-settings-status" class="caption" role="status"></span></div>
+      </form>
+      <div class="boss-import-grid">
+        <form id="boss-blocked-form" class="boss-import-panel"><h3>屏蔽公司名单</h3><p>把 BOSS 隐私设置中已屏蔽的公司名单复制到这里，或导入你持有的文本文件；不会读取你的账号。</p><label>每行一家，也支持 JSON / CSV<textarea id="boss-blocked-data" placeholder="公司 A&#10;公司 B"></textarea></label><label class="boss-file-label">或选择本地文件<input id="boss-blocked-file" type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json"></label><div class="boss-actions"><button class="secondary" type="submit">合并屏蔽名单</button><span id="boss-blocked-status" class="caption" role="status"></span></div><div id="boss-excluded-list" class="boss-excluded-list" aria-live="polite"></div></form>
+        <form id="boss-screen-form" class="boss-import-panel"><h3>导入岗位并筛选</h3><p>粘贴或导入你持有的 JSON / CSV 岗位列表。完整 JD 正文可直接带入简历编辑器。</p><label>岗位列表<textarea id="boss-job-data" placeholder='[{"company":"示例公司","title":"用户运营","url":"https://...","description":"岗位职责与任职要求..."}]'></textarea></label><label class="boss-file-label">或选择本地文件<input id="boss-job-file" type="file" accept=".json,.csv,.txt,application/json,text/csv,text/plain"></label><div class="boss-actions"><button class="primary" type="submit">筛选岗位</button><span id="boss-screen-status" class="caption" role="status"></span></div><p class="caption">同时填写时优先使用粘贴内容。筛选结果不等于已投递；正式提交仍需本人核对与回执。</p></form>
+      </div>
+      <div id="boss-results" class="boss-results" hidden><div class="section-title"><h3>本次筛选结果</h3><span id="boss-result-meta" class="caption"></span></div><div id="boss-result-summary" class="boss-result-summary"></div><div id="boss-result-list" class="boss-result-list"></div></div>
+    </div>
     <div class="surface ai-assist"><div><h3>可选：DeepSeek 推荐摘要</h3><p>只会发送当前偏好、推荐岗位标题和已展示的匹配理由；不会发送邮箱、电话或原始简历。需要在本机配置 <code>DEEPSEEK_API_KEY</code>。</p></div><button class="secondary" id="ai-recommend" type="button">生成摘要</button><p id="ai-recommend-status" class="caption" role="status"></p><div id="ai-recommend-result" class="ai-result" hidden></div></div>
     <div id="application-board" class="application-board"></div>
     <div class="surface"><h3>推荐公司与社招短名单</h3><div id="company-shortlist"></div><button class="secondary" data-copy="请使用 job-search-workflow，先读当前案例 search-preferences.json，排除曾任职公司，按本人兴趣在公司官网检索社会招聘。结合简历事实逐条核验硬门槛，生成公司推荐理由、JD 原文、缺口、独立简历和待投队列。沿用明确投递授权，未知必填事实先补问；每次外部执行冻结材料并核验回执，遇到验证码或签署条款由本人接手，不把未核实状态记为成功。">复制官网社招执行指令</button><p class="caption">官网搜索与自动填写由 Codex 浏览器执行；此按钮只复制任务，不会在后台投递。</p></div>

@@ -48,11 +48,15 @@ export DEEPSEEK_MODEL='deepseek-chat'   # 可选
 
 首页包含总览图表、素材与作品集、JD 简历、投递看板、面试复盘和个人网站。导入 PDF/Word 后保留原文摘录与来源；综合总结由 Codex 执行。可按完整事实库或某份 JD 简历生成同款作品集网站，本地保存复盘和自评。官网社招通过 Codex 浏览器与投递记录脚本执行，页面不提供无人值守投递服务。详见 [工作台说明](references/career-workspace.md)。
 
+投递页现在支持 [BOSS 岗位辅助筛选](references/boss-assisted.md)：导入自己持有的岗位 JSON/CSV 与屏蔽公司名单，按薪资、规模、双休等条件审阅，并把核对过的完整 JD 送进简历生成器。这里没有安装 Boss-Plus 私有脚本；筛选结果和招呼语草稿不会自动在 BOSS 开聊或投递。
+
 只粘贴完整 JD 也可以生成。若正文中有“公司：”“岗位名称：”等明确标签，工作台会提取它们并在结果中提示复核；没有明确标签时仍会生成审阅稿，但公司或岗位名称会标为待补全，不能外发。
 
 ## 事实与隐私
 
 真实案例应包含 `career-evidence-bank.md`、`coaching-state.md` 与派生的 `resume-evidence.json`。后者保存姓名、经历和来源摘要，属于私有候选人数据，**不要提交到公开 GitHub**。`tests/fixtures/` 仅使用合成 JD。
+
+若要让后续迭代保留先前沟通，可在私有案例内维护 `user-requirements.md`：按日期追加用户目标、偏好、授权范围与实现位置。Skill 启动时先读取它；它不会进入公开预览，也不能替代原始聊天记录、职业事实或真实投递回执。
 
 公开同步时提交 `skills/job-search-workflow/` 即可。该目录的 `tests/fixtures/synthetic-case/` 包含可运行的合成事实库与缓存，用于验证安装包不依赖任何个人案例；项目根目录的 `.gitignore` 默认排除真实 `job-search-cases/`、生成材料和本地验收输出。
 

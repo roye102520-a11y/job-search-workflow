@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let token = '', workspace = null, saving = false, installPrompt = null;
+let token = '', workspace = null, saving = false, installPrompt = null, bossState = {settings:null,screen:null};
 const families = {'user-operations':'用户 / 客户运营','ai-content-operations':'AI 知识库 / 内容运营','implementation-support':'项目交付 / 实施支持','product-operations':'产品助理 / 产品运营'};
 const stages = {discovered:'已发现',shortlisted:'已筛选',preparing:'准备材料',ready:'待投递',submitted:'已投递',assessment:'测评',interview:'面试',offer:'Offer',rejected:'已拒绝',withdrawn:'已撤回',closed:'已关闭'};
 const dimensions = ['证据','结构','岗位相关性','个人贡献','可信度'];
@@ -49,14 +49,75 @@ function renderPreferences(data){
   for(const [key,id] of [['categories','preference-categories'],['locations','preference-locations'],['requests','preference-requests']]){const box=clear(id);(data.preference_options[key]||[]).forEach(value=>{const label=node('label','', 'check-pill');const input=document.createElement('input');input.type='checkbox';input.name=key;input.value=value;input.checked=(selected[key]||[]).includes(value);label.append(input,node('span',value));box.append(label);});}
   const list=clear('recommendations');(data.recommendations||[]).forEach(item=>{const card=node('article',undefined,'recommendation-card');const head=node('div',undefined,'recommendation-head');head.append(node('div',undefined,'recommendation-score'));head.firstChild.append(node('strong',String(item.score)),node('span','匹配分'));head.append(node('div'));head.lastChild.append(node('h3',item.title),node('p',item.company+' · '+item.locations.join(' / ')));card.append(head);card.append(node('p','AI 推荐理由：'+(item.evidence.length?item.evidence.join('、'):'当前简历证据较少，建议先读 JD')));card.append(node('p',item.status,'caption'));if(item.url)card.append(externalLink('打开岗位原链接 ↗',item.url));list.append(card);});if(!list.children.length)list.append(node('p','暂无符合当前偏好的推荐，请放宽地点或岗位类别。','empty-state'));
 }
+function bossList(value){return String(value||'').split(/[\n,，;；]+/).map(item=>item.trim()).filter(Boolean);}
+function bossNumber(id){const value=$(id).value.trim();return value===''?null:Number(value);}
+function bossSettingsFromForm(){
+  const settings={
+    keywords:bossList($('boss-keywords').value),cities:bossList($('boss-cities').value),company_sizes:bossList($('boss-company-sizes').value),
+    excluded_companies:[...(bossState.settings?.excluded_companies||[])],min_salary_k:bossNumber('boss-salary-min'),max_salary_k:bossNumber('boss-salary-max'),
+    require_weekends_off:$('boss-weekends').checked,max_open_positions:Number($('boss-open-limit').value),
+    greeting_template:$('boss-greeting').value.trim(),greeting_confirmed:$('boss-greeting-confirmed').checked
+  };
+  if(!Number.isInteger(settings.max_open_positions)||settings.max_open_positions<0)throw new Error('在招岗位数上限请填 0 或正整数');
+  for(const key of ['min_salary_k','max_salary_k'])if(settings[key]!==null&&(!Number.isFinite(settings[key])||settings[key]<=0))throw new Error('薪资范围请填写正数');
+  if(settings.min_salary_k!==null&&settings.max_salary_k!==null&&settings.min_salary_k>settings.max_salary_k)throw new Error('月薪下限不能高于上限');
+  return settings;
+}
+function renderBossSettings(settings){
+  if(!settings)return;
+  $('boss-keywords').value=(settings.keywords||[]).join('，');$('boss-cities').value=(settings.cities||[]).join('，');$('boss-company-sizes').value=(settings.company_sizes||[]).join('，');
+  $('boss-salary-min').value=settings.min_salary_k??'';$('boss-salary-max').value=settings.max_salary_k??'';$('boss-open-limit').value=settings.max_open_positions??0;
+  $('boss-weekends').checked=Boolean(settings.require_weekends_off);$('boss-greeting').value=settings.greeting_template||'';$('boss-greeting-confirmed').checked=Boolean(settings.greeting_confirmed);
+  const list=clear('boss-excluded-list'),blocked=settings.excluded_companies||[];
+  list.append(node('span','已屏蔽 '+blocked.length+' 家公司','caption'));
+  blocked.slice(0,24).forEach(company=>{const chip=node('span',company,'boss-excluded-chip');const remove=node('button','×');remove.type='button';remove.title='移除 '+company;remove.setAttribute('aria-label','移除屏蔽公司 '+company);remove.addEventListener('click',async()=>{remove.disabled=true;try{await api('/api/boss/settings',{settings:{...bossState.settings,excluded_companies:blocked.filter(name=>name!==company)}});await loadBoss();$('boss-blocked-status').textContent='已从屏蔽名单移除 '+company;}catch(error){$('boss-blocked-status').textContent=error.message;}finally{remove.disabled=false;}});chip.append(remove);list.append(chip);});
+  if(blocked.length>24)list.append(node('span','另有 '+(blocked.length-24)+' 家未展示','caption'));
+}
+const bossLabels={shortlist:'可继续准备',needs_verification:'待核验',excluded:'已排除',duplicate:'重复岗位'};
+function renderBossScreen(screen){
+  const root=$('boss-results'),summaryBox=clear('boss-result-summary'),list=clear('boss-result-list');
+  if(!screen){root.hidden=true;return;}root.hidden=false;
+  const results=Array.isArray(screen.results)?screen.results:[],summary=screen.summary||{};
+  $('boss-result-meta').textContent='共 '+results.length+' 条岗位 · 仅为本地筛选';
+  for(const status of ['shortlist','needs_verification','excluded','duplicate']){const count=Number(summary[status]??results.filter(item=>item.status===status).length);const chip=node('span',bossLabels[status]+' '+count,'boss-count '+status);summaryBox.append(chip);}
+  if(summary.invalid)summaryBox.append(node('span','无法解析 '+summary.invalid,'boss-count needs_verification'));
+  if(Array.isArray(screen.errors)&&screen.errors.length){const errorBox=node('details',undefined,'boss-errors');errorBox.append(node('summary','查看 '+screen.errors.length+' 条导入错误'));const errors=node('ul');screen.errors.slice(0,30).forEach(error=>errors.append(node('li','第 '+error.index+' 条：'+error.error)));errorBox.append(errors);list.append(errorBox);}
+  for(const status of ['shortlist','needs_verification','excluded','duplicate']){
+    const items=results.filter(item=>item.status===status);if(!items.length)continue;
+    const group=node('section',undefined,'boss-result-group');group.append(node('h4',bossLabels[status]+' · '+items.length));const cards=node('div',undefined,'boss-card-grid');
+    items.forEach(item=>{
+      const job=item.job||{},card=node('article',undefined,'boss-card '+status),head=node('div',undefined,'boss-card-head');
+      const title=node('h5',job.title||'未命名岗位');head.append(title,node('span',bossLabels[status],'boss-status'));card.append(head,node('p',(job.company||'公司待核验')+' · '+(job.city||'地点待核验'),'boss-company'));
+      const facts=[job.salary,job.company_size,job.open_positions===null||job.open_positions===undefined?'':'在招岗位 '+job.open_positions].filter(Boolean);if(facts.length)card.append(node('p',facts.join(' · '),'boss-facts'));
+      const reasons=[...(item.reasons||[]),...(item.needs_verification||[])];if(reasons.length){const reasonsBox=node('ul',undefined,'boss-reasons');reasons.forEach(reason=>reasonsBox.append(node('li',String(reason))));card.append(reasonsBox);}
+      if(item.duplicate_of)card.append(node('p','与本次导入的第 '+item.duplicate_of+' 条岗位重复。','caption'));
+      const actions=node('div',undefined,'boss-card-actions');if(job.url)actions.append(externalLink('打开岗位链接 ↗',job.url));
+      const description=String(job.description||'').trim();const structuredJD=description.length>=120&&/(岗位职责|工作职责|工作内容|职位描述|岗位描述|工作任务)/.test(description)&&/(任职要求|岗位要求|任职资格|资格要求|职位要求|岗位条件)/.test(description);
+      const canAuto=structuredJD&&status!=='excluded'&&status!=='duplicate';const reviewOnly=status==='excluded'||status==='duplicate';
+      const prepare=node('button',canAuto?'生成此 JD 简历':reviewOnly?'仅查看 JD':'补全 JD 后生成','secondary');prepare.type='button';if(canAuto){prepare.disabled=true;prepare.title='请先核对导入内容与当前岗位页面一致，并勾选完整 JD 确认';const confirm=node('label',undefined,'boss-check boss-jd-confirm');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.addEventListener('change',()=>{prepare.disabled=!checkbox.checked;});confirm.append(checkbox,node('span','已对照岗位页面核对为完整 JD'));card.append(confirm);}prepare.addEventListener('click',()=>{sessionStorage.setItem('career-studio-jd-prefill',JSON.stringify({jd:structuredJD?description:'',title:job.title||'',company:job.company||'',url:job.url||'',auto_generate:canAuto}));location.assign('/studio');});actions.append(prepare);card.append(actions);
+      if(reviewOnly)card.append(node('p','该岗位已排除或重复，不会自动生成材料。','caption'));else if(!structuredJD)card.append(node('p','导入内容缺少完整的岗位职责或任职要求；编辑器将等待你补全 JD。','caption'));
+      else{const details=node('details',undefined,'boss-jd');details.append(node('summary','查看导入的 JD 正文'),node('pre',description));card.append(details);}
+      if(item.greeting_draft){const greeting=node('div',undefined,'boss-greeting-draft');greeting.append(node('span','招呼语草稿','caption'),node('p',item.greeting_draft));const copy=node('button','复制草稿','quiet');copy.type='button';copy.addEventListener('click',()=>copyBossText(item.greeting_draft,'招呼语草稿'));greeting.append(copy);card.append(greeting);}
+      cards.append(card);
+    });group.append(cards);list.append(group);
+  }
+  if(!list.children.length)list.append(node('p','没有可展示的岗位，请检查导入内容和筛选条件。','empty-state'));
+}
+function renderBoss(state){bossState=state;renderBossSettings(state.settings);renderBossScreen(state.screen);}
+async function loadBoss(){try{const state=await api('/api/boss');renderBoss(state);return state;}catch(error){$('boss-settings-status').textContent='BOSS 筛选台暂不可用：'+error.message;return null;}}
+async function bossData(textId,fileId){let value=$(textId).value.trim();if(!value&&$(fileId).files[0]){const file=$(fileId).files[0];if(file.size>2*1024*1024)throw new Error('请选择 2 MB 以内的文件');value=(await file.text()).trim();}if(!value)throw new Error('请粘贴内容或选择文件');if(new TextEncoder().encode(value).length>2*1024*1024)throw new Error('导入内容请控制在 2 MB 以内');return value;}
+async function copyBossText(value,title){try{await navigator.clipboard.writeText(value);notice('已复制'+title+'，发送前请再次核对。');}catch{$('document-title').textContent=title;$('document-content').textContent=value;$('document-dialog').showModal();}}
 function renderReviews(data){const chart=clear('review-chart'),latest=data.reviews[0];dimensions.forEach(name=>chart.append(bar(name,latest&&Number.isInteger(latest.scores[name])?latest.scores[name]:null,5)));if(!latest)chart.append(node('p','保存复盘并填写自评后，图表会显示真实记录。','caption'));else chart.append(node('p',latest.date+' · '+(latest.kind==='practice'?'模拟练习':'真实面试')+' · '+(latest.role||'未指定岗位'),'caption'));const history=clear('review-history');data.reviews.forEach(review=>{const item=node('details',undefined,'surface');item.append(node('summary',review.date+' · '+(review.kind==='practice'?'模拟练习':'真实面试')+' · '+(review.role||review.company||'复盘记录')));const body=node('div',undefined,'review-detail');for(const [key,label] of [['question','问题'],['answer','回答'],['feedback','反馈'],['next_action','下一步改进']]){const p=node('p');p.append(node('strong',label+'：'),document.createTextNode(review[key]||'未记录'));body.append(p);}item.append(body);history.append(item);});if(!data.reviews.length)history.append(node('p','尚未保存复盘。可先练习转行自我介绍、个人贡献、关键取舍与成果证据。','empty-state'));}
 async function refresh(){const data=await api('/api/workspace');workspace=data;renderOverview(data);renderAssets(data);renderHistory(data);renderApplications(data);renderPreferences(data);renderReviews(data);$('updated').textContent='资料刷新 '+new Date(data.updated_at).toLocaleTimeString('zh-CN');notice(data.warnings.length?data.warnings.join('；'):'');return data;}
 document.querySelectorAll('[data-panel]').forEach(button=>button.addEventListener('click',()=>show(button.dataset.panel)));
 document.querySelectorAll('[data-go]').forEach(button=>button.addEventListener('click',()=>show(button.dataset.go)));
 window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
-$('refresh').addEventListener('click',async()=>{try{await refresh();notice('已重新读取案例资料。');}catch(error){notice(error.message);}});
+$('refresh').addEventListener('click',async()=>{try{await refresh();await loadBoss();notice('已重新读取案例资料。');}catch(error){notice(error.message);}});
 $('include-tests').addEventListener('change',()=>workspace&&renderHistory(workspace));
 $('preference-form').addEventListener('submit',async e=>{e.preventDefault();const button=e.currentTarget.querySelector('[type=submit]');button.disabled=true;try{const payload={};for(const key of ['categories','locations','requests'])payload[key]=[...e.currentTarget.querySelectorAll('input[name='+key+']:checked')].map(x=>x.value);await api('/api/workspace/preferences',payload);$('preference-status').textContent='偏好已保存，推荐已按最新选择刷新。';await refresh();}catch(error){$('preference-status').textContent=error.message;}finally{button.disabled=false;}});
+$('boss-settings-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.currentTarget.querySelector('[type=submit]'),status=$('boss-settings-status');button.disabled=true;status.textContent='正在保存…';try{await api('/api/boss/settings',{settings:bossSettingsFromForm()});await loadBoss();status.textContent='筛选条件已保存；现有导入岗位已按新条件重新计算。';}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
+$('boss-blocked-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.currentTarget.querySelector('[type=submit]'),status=$('boss-blocked-status');button.disabled=true;status.textContent='正在导入…';try{const data=await bossData('boss-blocked-data','boss-blocked-file');await api('/api/boss/blocked',{data});$('boss-blocked-data').value='';$('boss-blocked-file').value='';await loadBoss();status.textContent='名单已合并；重复公司自动去重。';}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
+$('boss-screen-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.currentTarget.querySelector('[type=submit]'),status=$('boss-screen-status');button.disabled=true;status.textContent='正在筛选…';try{const data=await bossData('boss-job-data','boss-job-file');await api('/api/boss/screen',{data});$('boss-job-data').value='';$('boss-job-file').value='';await loadBoss();status.textContent='筛选完成。请核对岗位原文，再准备对应材料。';}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
 $('ai-recommend').addEventListener('click',async()=>{const button=$('ai-recommend'),status=$('ai-recommend-status'),result=$('ai-recommend-result');button.disabled=true;status.textContent='正在请求 DeepSeek…';result.hidden=true;try{const selected={};for(const key of ['categories','locations','requests'])selected[key]=[...document.querySelectorAll('input[name='+key+']:checked')].map(x=>x.value);const jobs=[...(workspace?.recommendations||[])].slice(0,8).map(x=>({company:x.company,title:x.title,locations:x.locations,evidence:x.evidence,status:x.status}));const prompt='请用中文整理一份求职岗位推荐摘要。只根据以下已确认的偏好和推荐卡片，不补造岗位事实；把“推荐原因”“需要核验的事项”“下一步动作”分成三段，语气简洁。偏好：'+JSON.stringify(selected)+'。推荐卡片：'+JSON.stringify(jobs);const response=await api('/api/ai/recommend',{prompt});result.textContent=response.text;result.hidden=false;status.textContent='摘要已生成；请把它当作辅助说明，岗位链接仍需官网核验。';}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
 $('close-document').addEventListener('click',()=>$('document-dialog').close());
 document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(button.dataset.copy);notice('已复制工作指令，可粘贴到 Codex 继续。');}catch{$('document-title').textContent='工作指令';$('document-content').textContent=button.dataset.copy;$('document-dialog').showModal();}}));
@@ -66,7 +127,7 @@ $('build-portfolio').addEventListener('click',async()=>{const button=$('build-po
 dimensions.forEach(name=>{const label=node('label',name);const select=document.createElement('select');select.dataset.score=name;select.add(new Option('未评分',''));for(let i=1;i<=5;i++)select.add(new Option(String(i),String(i)));label.append(select);$('score-inputs').append(label);});
 const today=new Date();document.querySelector('[name=date]').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
 $('review-form').addEventListener('submit',async event=>{event.preventDefault();if(saving)return;saving=true;const button=event.currentTarget.querySelector('button[type=submit]');button.disabled=true;const values=Object.fromEntries(new FormData(event.currentTarget));values.id=event.currentTarget.dataset.pendingId||(event.currentTarget.dataset.pendingId=crypto.randomUUID());values.scores={};document.querySelectorAll('[data-score]').forEach(s=>{if(s.value)values.scores[s.dataset.score]=Number(s.value);});try{await api('/api/workspace/review',values);$('review-status').textContent='复盘已保存。未改变投递阶段，也未写入职业事实库。';delete $('review-form').dataset.pendingId;for(const name of ['question','answer','feedback','next_action'])document.querySelector('[name='+name+']').value='';await refresh();}catch(error){$('review-status').textContent=error.message;}finally{saving=false;button.disabled=false;}});
-(async()=>{try{if(location.protocol==='file:')throw new Error('请通过 http://127.0.0.1:8765 打开工作台，直接打开 HTML 无法连接本地资料');const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('无法连接本地服务');token=(await response.json()).token;await refresh();show(location.hash.slice(1)||'overview');}catch(error){notice(error.message+'；请确认本地工作台已启动。');}})();
+(async()=>{try{if(location.protocol==='file:')throw new Error('请通过 http://127.0.0.1:8765 打开工作台，直接打开 HTML 无法连接本地资料');const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('无法连接本地服务');token=(await response.json()).token;await refresh();await loadBoss();show(location.hash.slice(1)||'overview');}catch(error){notice(error.message+'；请确认本地工作台已启动。');}})();
 
 $('material-form').addEventListener('submit',async e=>{e.preventDefault();const file=$('material-file').files[0],button=e.currentTarget.querySelector('[type=submit]');if(!file)return;if(file.size>6*1024*1024){$('material-status').textContent='请选择 6 MB 以内的文件';return;}button.disabled=true;try{const content=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=()=>reject(new Error('无法读取文件'));r.readAsDataURL(file);});const result=await api('/api/workspace/material',{name:file.name,kind:$('material-kind').value,content});$('material-status').textContent=result.note;await refresh();}catch(error){$('material-status').textContent=error.message;}finally{button.disabled=false;}});
 
