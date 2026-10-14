@@ -1,0 +1,87 @@
+{
+  "degree": [
+    {
+      "text": "计算机硕士。",
+      "level": "required",
+      "status": "not_met",
+      "reason": "已记录学历为商务英语本科；没有把未提供的相关硕博学历推定为满足。",
+      "evidence_refs": [
+        "person.education"
+      ]
+    }
+  ],
+  "adjacent": [
+    {
+      "text": "生产级 RAG 系统维护。",
+      "level": "required",
+      "status": "supported",
+      "reason": "有相邻的 OCR、离线评测或 RAG 实践；具体深度仍以事实条目为准。",
+      "evidence_refs": [
+        "operation-guides",
+        "content-structured-documents",
+        "content-qa-versioning"
+      ]
+    }
+  ],
+  "missing_years": [
+    {
+      "text": "至少10年用户运营经验。",
+      "level": "required",
+      "status": "not_met",
+      "reason": "已记录的全职用户/服务相关经历按月份并集为 0 个月；不与兼职或重叠岗位相加。",
+      "evidence_refs": []
+    }
+  ],
+  "title_bias": {
+    "family": null,
+    "label": "方向待确认",
+    "outcome": "ambiguous",
+    "scores": {
+      "user-operations": 4,
+      "ai-content-operations": 0,
+      "implementation-support": 0,
+      "product-operations": 4
+    },
+    "warnings": [
+      "JD 信息不足或多个方向相近；补充完整职责，或明确选择方向后生成审阅稿。"
+    ]
+  },
+  "weekends": {
+    "source": "offline_import",
+    "review_only": true,
+    "automated_actions": false,
+    "summary": {
+      "shortlist": 1,
+      "needs_verification": 0,
+      "excluded": 0,
+      "duplicate": 0,
+      "invalid": 0
+    },
+    "results": [
+      {
+        "index": 1,
+        "job": {
+          "url": "https://www.zhipin.com/job_detail/Ab1234567890.html",
+          "company": "合成公司",
+          "title": "运营",
+          "city": "上海",
+          "salary": "10-15K·13薪",
+          "company_size": "",
+          "open_positions": "",
+          "tags": "双休",
+          "description": "每周六必须加班"
+        },
+        "stable_job_id": "Ab1234567890",
+        "duplicate_of": null,
+        "status": "shortlist",
+        "reasons": [
+          "识别到 BOSS 岗位详情 URL 结构；职位在线有效性仍需核实。",
+          "岗位文字提到双休；实际休息制度仍需核实。"
+        ],
+        "needs_verification": [],
+        "greeting_draft": null
+      }
+    ],
+    "errors": []
+  }
+}

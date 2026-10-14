@@ -1,0 +1,6 @@
+{
+  "B05_ocr_omitted": true,
+  "B07_stale_recommendations_still_use_evidence": true,
+  "B09_changed_salary_status": "duplicate",
+  "B11_incomplete_event_counted_as_submitted": 1
+}
