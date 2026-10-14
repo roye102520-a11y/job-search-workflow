@@ -118,6 +118,16 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_page(ASSETS / 'career-workspace.html')
         elif path == '/studio':
             self.send_page(ASSET)
+        elif path == '/strategy':
+            self.send_page(ASSETS / 'search-strategy.html')
+        elif path == '/api/strategy/followups':
+            if not self.has_token():
+                return
+            try:
+                from search_strategy import followups
+                self.send_json(200, followups(self.server.case))
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                self.send_json(400, {'error': str(error)})
         elif path in ('/assets/career-workspace.js', '/assets/career-workspace.css', '/assets/manifest.webmanifest', '/assets/sw.js', '/career-workspace.js', '/career-workspace.css', '/manifest.webmanifest', '/sw.js'):
             target = ASSETS / path.rsplit('/', 1)[-1]
             mime = {'.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json',}.get(target.suffix, 'text/plain; charset=utf-8')
@@ -138,6 +148,14 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json(200, boss_workspace.state(self.server.case))
             except (OSError, ValueError, TypeError) as error:
                 self.send_json(400, {'error': str(error)})
+        elif path == '/api/jd/current':
+            if not self.has_token():
+                return
+            target = self.server.case / 'target-jd.md'
+            if not target.is_file() or target.is_symlink():
+                self.send_json(404, {'error': '当前案例尚未保存目标 JD'})
+            else:
+                self.send_json(200, {'jd': target.read_text(encoding='utf-8')})
         elif path.startswith('/resources/'):
             try:
                 import career_workspace
@@ -189,7 +207,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/generate', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
+        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
             self.send_json(404, {'error': '接口不存在'})
             return
         if not self.has_token():
@@ -214,6 +232,13 @@ class StudioHandler(BaseHTTPRequestHandler):
             if len(raw) != length:
                 raise ValueError('请求内容不完整，请重试')
             request = json.loads(raw)
+            if endpoint == '/api/jd/analyze':
+                if not isinstance(request, dict) or set(request) != {'jd'} or not isinstance(request['jd'], str):
+                    raise ValueError('请提供 JD 正文')
+                if not request['jd'].strip() or len(request['jd']) > 100000:
+                    raise ValueError('JD 正文为空或过长')
+                self.analyze_jd(request['jd'])
+                return
             if endpoint != '/api/generate':
                 if not isinstance(request, dict):
                     raise ValueError('请求必须为对象')
@@ -264,13 +289,33 @@ class StudioHandler(BaseHTTPRequestHandler):
         finally:
             self.server.generation_lock.release()
 
+    def analyze_jd(self, jd):
+        if not self.server.generation_lock.acquire(blocking=False):
+            self.send_json(409, {'error': '正在处理其他材料，请稍后重试'})
+            return
+        try:
+            from resume_pipeline import load_evidence
+            from jd_gap_analysis import analyze
+            self.send_json(200, analyze(jd, load_evidence(self.server.case)))
+        except (ValueError, OSError, TypeError, KeyError) as error:
+            self.send_json(400, {'error': str(error)})
+        except ImportError:
+            self.send_json(503, {'error': '本地分析模块未就绪，请检查工作台安装'})
+        except Exception:
+            self.send_json(500, {'error': '岗位分析未完成，请检查运行终端'})
+        finally:
+            self.server.generation_lock.release()
+
     def workspace_write(self, endpoint, request):
         if not self.server.generation_lock.acquire(blocking=False):
             self.send_json(409, {'error': '正在保存其他材料，请稍后重试'})
             return
         try:
             import career_workspace
-            if endpoint.endswith('/preferences'):
+            if endpoint == '/api/strategy/rank':
+                from search_strategy import run
+                action = run
+            elif endpoint.endswith('/preferences'):
                 from career_workspace import save_preferences
                 action = save_preferences
             elif endpoint.endswith('/material'):

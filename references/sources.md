@@ -1,5 +1,11 @@
 # 整合来源与范围
 
+## 2026-10-11：AI Job Search
+
+核对 [MadsLorentzen/ai-job-search](https://github.com/MadsLorentzen/ai-job-search) master 的 README、`rank.md`、`outcome.md`、upskill Skill（未固定 commit，未运行上游代码）。吸收批量初筛、静默申请跟进、跨岗位缺口聚合思路，独立实现 [求职策略台](search-strategy.md)。没有复制上游代码、采集器或个性化档案。上游 Gmail/Notion 集成、丹麦招聘站、薪资工具不在本轮实现范围。
+
+本地复用已有四方向证据规则，排序是可解释的初筛分，不等同上游多维模型评估。当前 PDF 已检查页数与可提取文本；仍需语义、阅读顺序和视觉审阅。完整对比保存在项目 `skill-reviews/2026-10-11-ai-job-search-comparison.md`。
+
 本 Skill 是基于项目与用户提供摘要写成的独立工作流，没有安装或复制第三方执行代码。
 
 ## 本项目
