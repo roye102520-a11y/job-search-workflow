@@ -10,7 +10,7 @@ spec.loader.exec_module(requirements)
 
 
 EVIDENCE = {
-    'person': {'education_zh': '某大学｜商务英语｜本科｜2019.09–2023.06', 'education_en': 'Business English, undergraduate education'},
+    'person': {'education_complete': True, 'experience_complete': True, 'education_zh': '某大学｜商务英语｜本科｜2019.09–2023.06', 'education_en': 'Business English, undergraduate education'},
     'entries': [
         {'kind': 'work', 'dates': '2024.06–2025.05', 'employment_zh': '全职', 'tags': ['user-operations', 'implementation-support'], 'bullets': [
             {'id': 'user-1', 'zh': '管理用户生命周期并制作操作指南。', 'en': '', 'keywords': [], 'tags': ['user-operations', 'implementation-support']}]},

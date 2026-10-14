@@ -60,7 +60,12 @@ def save_preferences(case, request):
 
 def recommendations(case):
     pref = preferences(case)
-    entries = read_json(case, 'resume-evidence.json', {}).get('entries', [])
+    from resume_pipeline import load_evidence
+    from evidence_quality import usable_entries
+    try:
+        entries = usable_entries(load_evidence(Path(case).resolve()))
+    except (ValueError, OSError, KeyError, TypeError):
+        entries = []
     tags = {tag for entry in entries for bullet in entry.get('bullets', []) for tag in bullet.get('tags', [])}
     catalog = [
         {'id': 'bytedance-ai-learning-ops', 'company': '字节跳动', 'title': 'AI学习能力产品运营-中国广告销售平台', 'locations': ['上海', '北京'], 'categories': ['产品运营', 'AI/知识库运营'], 'requests': ['互联网大厂', 'AI 产品', '跨团队协同'], 'url': 'https://jobs.bytedance.com/experienced/position/7574062969937234181/detail?spread=PJUJ6P6', 'status': '用户提供岗位链接，官网有效性待核验'},
@@ -83,6 +88,8 @@ def recommendations(case):
         if 'implementation-support' in tags and '跨团队协同' in job['requests']: evidence_hits.append('有实施支持相关事实条目')
         if 'product-operations' in tags and '产品运营' in job['categories']: evidence_hits.append('有产品运营相关事实条目')
         result.append({**job, 'score': category_hits * 3 + location_hits * 2 + request_hits + len(evidence_hits) * 2, 'evidence': evidence_hits, 'matched_preferences': category_hits + location_hits + request_hits})
+    for row in result:
+        row.update(source='内置岗位线索目录，未核验，非当前候选人提供', last_verified_at=None)
     return sorted(result, key=lambda x: (-x['score'], x['company'], x['title']))
 
 
@@ -132,7 +139,8 @@ def snapshot(case):
         raise ValueError('证据缓存格式错误')
     text = source_text(case, 'career-evidence-bank.md')
     coaching = source_text(case, 'coaching-state.md')
-    entries = evidence.get('entries', [])
+    from evidence_quality import usable_entries
+    entries = usable_entries(evidence)
     projects = [{**e, **project_links(text, e)} for e in entries if e.get('kind') == 'project']
     tracker = local_file(case, 'application-tracker.csv')
     applications = []
@@ -142,10 +150,13 @@ def snapshot(case):
     keys = [r.get('job_key') for r in applications]
     if len(keys) != len(set(keys)):
         raise ValueError('投递记录存在重复编号，请先修复再展示统计')
+    stage_issues = []
     for row in applications:
+        if row.get('status') and row.get('application_status') and row['status'] != row['application_status']:
+            stage_issues.append('岗位 ' + row.get('job_key', '') + ' 的阶段别名冲突，请人工复核；未改写历史。')
         row['status'] = row.get('status') or row.get('application_status') or 'discovered'
         row['url'] = safe_url(row.get('url'))
-    history, issues, portfolios, materials = [], [], [], []
+    history, issues, portfolios, materials = [], stage_issues, [], []
     inbox = local_file(case, 'material-inbox')
     if inbox.is_dir():
         for path in sorted(inbox.glob('*/intake.json'), reverse=True):
@@ -159,6 +170,7 @@ def snapshot(case):
             load_evidence(case)
         except (ValueError, OSError, KeyError, TypeError) as error:
             issues.append('证据缓存需要复核：' + str(error))
+            entries, projects = [], []
     root = local_file(case, 'generated')
     if root.is_dir():
         for folder in sorted(root.glob('portfolio-*'), reverse=True):
@@ -172,7 +184,8 @@ def snapshot(case):
                 request = read_json(case, str(path.parent.relative_to(case) / 'request.json'), {})
                 is_test = bool(re.search(r'合成|synthetic|example\.test', ' '.join(str(request.get(k, '')) for k in ('jd', 'company', 'url')), re.I))
                 history.append({'id': path.parent.name, 'title': request.get('title', '岗位材料'), 'company': request.get('company', ''),
-                                'family': result.get('family'), 'label': result.get('label'), 'synthetic': is_test,
+                                'family': result.get('family'), 'label': result.get('label'), 'synthetic': is_test, 'status': result.get('status', 'preparing'),
+                                'stale': read_json(case, str(path.parent.relative_to(case) / 'selection.json'), {}).get('evidence_digest') not in (None, __import__('hashlib').sha256(local_file(case, 'resume-evidence.json').read_bytes()).hexdigest()),
                                 'files': {k: v for k, v in result.get('files', {}).items() if isinstance(v, str) and local_file(case, v).is_file()},
                                 'blockers': len(result.get('requirement_summary', {}).get('required_blockers', []))})
             except (ValueError, OSError, TypeError, AttributeError):
@@ -196,15 +209,44 @@ def snapshot(case):
     event_file = local_file(case, 'application-events.jsonl')
     submitted = set()
     if event_file.is_file():
+        events, seen = [], {}
         for line in event_file.read_text(encoding='utf-8').splitlines():
-            if line.strip():
-                try:
-                    event = json.loads(line)
-                    if event.get('action') == 'attempt_result' and event.get('result') == 'submitted':
-                        submitted.add(event['job_key'])
-                except (ValueError, KeyError, AttributeError):
-                    issues.append('部分投递事件无法读取，确认投递数量可能不完整')
-    return {'name': evidence.get('person', {}).get('name_zh', '我的求职空间'),
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+                identifier = event.get('event_id')
+                if not isinstance(event, dict) or not isinstance(identifier, str) or not identifier:
+                    raise ValueError('事件缺少编号')
+                if identifier in seen and seen[identifier] != event:
+                    raise ValueError('事件编号冲突')
+                seen[identifier] = event
+            except (ValueError, AttributeError):
+                issues.append('部分投递事件无法核对，未计入确认投递')
+        events = list(seen.values())
+        for event in events:
+            if event.get('action') != 'attempt_result' or event.get('result') != 'submitted':
+                continue
+            try:
+                start = next((e for e in events if e.get('action') == 'attempt_started' and e.get('attempt_id') and e.get('attempt_id') == event.get('attempt_id') and e.get('job_key') == event.get('job_key')), None)
+                stamp = datetime.fromisoformat(event.get('timestamp', '').replace('Z', '+00:00'))
+                begin = datetime.fromisoformat(start.get('timestamp', '').replace('Z', '+00:00')) if start else None
+                if not start or not stamp.tzinfo or not begin.tzinfo or not begin <= stamp <= datetime.now(timezone.utc):
+                    raise ValueError('缺少有效开始/确认时间')
+                if event.get('source') not in {'user_report', 'tool_observation'} or not event.get('evidence_path') or not local_file(case, event['evidence_path']).is_file():
+                    raise ValueError('缺少来源或回执文件')
+                submitted.add(event['job_key'])
+            except (ValueError, KeyError, OSError, TypeError):
+                issues.append('岗位 ' + str(event.get('job_key', '')) + ' 的提交证据不完整，未计入确认投递')
+    pref = preferences(case)
+    fields = {'姓名': bool(evidence.get('person', {}).get('name_zh')), '教育': bool(evidence.get('person', {}).get('education_zh')), '事实来源': bool(evidence.get('sources')), '经历': bool(entries), '求职目标': bool(pref['categories'])}
+    valid = bool(evidence) and not any('证据缓存' in issue for issue in issues)
+    task = {'profile_valid': valid, 'completed_fields': [k for k,v in fields.items() if v], 'missing_fields': [k for k,v in fields.items() if not v],
+            'field_total': len(fields), 'current_target': pref['categories'], 'pending_facts': len(evidence.get('unconfirmed', [])),
+            'primary_action': 'analyze' if valid else 'review' if materials else 'upload',
+            'recent_jobs': history[:3], 'unfinished_materials': [h for h in history if h['status'] == 'preparing'][:5],
+            'recent_submissions': [r for r in applications if r.get('job_key') in submitted][-5:]}
+    return {'task': task, 'name': evidence.get('person', {}).get('name_zh', '我的求职空间'),
             'website': safe_url(evidence.get('person', {}).get('portfolio', '')),
             'preferences': preferences(case), 'preference_options': {'categories': PREFERENCE_CATEGORIES, 'locations': PREFERENCE_LOCATIONS, 'requests': PREFERENCE_REQUESTS}, 'recommendations': recommendations(case),
             'projects': projects, 'entries': entries, 'documents': documents(case), 'applications': applications,
@@ -269,12 +311,15 @@ def build_portfolio(case, request):
         if not isinstance(resume_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', resume_id):
             raise ValueError('简历版本无效')
         selection = read_json(case, 'generated/' + resume_id + '/selection.json', {})
-        if selection.get('source_digests') != data['sources']:
+        from resume_pipeline import sha
+        if selection.get('source_digests') != data['sources'] or (selection.get('evidence_digest') and selection['evidence_digest'] != sha(local_file(case, 'resume-evidence.json'))):
             raise ValueError('简历版本事实源已过期或版本不存在，请先重新生成')
         from resume_pipeline import FAMILIES
         label = FAMILIES.get(selection.get('family'), label)
         chosen = set(selection.get('selected_bullet_ids', []))
         data['entries'] = [{**e, 'bullets': [b for b in e['bullets'] if b['id'] in chosen]} for e in data['entries']]
+    from evidence_quality import usable_entries
+    data['entries'] = usable_entries(data)
     ids = request.get('project_ids') if isinstance(request, dict) else None
     if not isinstance(ids, list) or not ids or any(not isinstance(i, str) for i in ids) or len(ids) != len(set(ids)):
         raise ValueError('请至少选择一个项目，且不得重复')

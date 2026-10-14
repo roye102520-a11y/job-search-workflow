@@ -40,7 +40,7 @@ class GapAnalysisTests(unittest.TestCase):
         self.assertEqual(result['summary']['total'], 11)
         self.assertEqual([item['number'] for item in result['items']], [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 6])
         self.assertEqual(len(result['plan']), 7)
-        self.assertEqual(result['items'][6]['fit'], '较弱相关')
+        self.assertEqual(result['items'][6]['fit'], '待核实')
         self.assertIn('短视频和直播', result['items'][6]['gap'])
         self.assertTrue(all(item['action'] and item['proof'] for item in result['items']))
 
