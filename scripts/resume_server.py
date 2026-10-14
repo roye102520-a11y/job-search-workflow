@@ -9,7 +9,7 @@ import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit, parse_qs
 
 
 FAMILIES = {
@@ -116,6 +116,11 @@ class StudioHandler(BaseHTTPRequestHandler):
                                  'mode': 'local-review-only'})
         elif path in ('/', '/index.html'):
             self.send_page(ASSETS / 'career-workspace.html')
+        elif path in ('/demo', '/demo/'):
+            self.send_page(ASSETS.parent / 'public/index.html')
+        elif path in ('/demo/preview.js', '/demo/styles.css'):
+            target = ASSETS.parent / 'public' / path.rsplit('/', 1)[-1]
+            self.send_bytes(200, target.read_bytes(), 'text/javascript; charset=utf-8' if target.suffix == '.js' else 'text/css; charset=utf-8')
         elif path == '/studio':
             self.send_page(ASSET)
         elif path == '/strategy':
@@ -148,6 +153,20 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json(200, boss_workspace.state(self.server.case))
             except (OSError, ValueError, TypeError) as error:
                 self.send_json(400, {'error': str(error)})
+        elif path == '/api/evidence/source':
+            if not self.has_token():
+                return
+            try:
+                from resume_pipeline import load_evidence, local
+                data = load_evidence(self.server.case)
+                ref = parse_qs(urlsplit(self.path).query).get('ref', [''])[0]
+                name = ref.split('#')[0]
+                if name not in {item['path'] for item in data['sources']}:
+                    raise ValueError('原文不在当前已校验的事实来源中')
+                target = local(self.server.case, name)
+                self.send_json(200, {'source_ref': ref, 'text': target.read_text(encoding='utf-8')})
+            except (OSError, ValueError, KeyError):
+                self.send_json(400, {'error': '无法读取已校验事实来源，请在档案页复核缓存后重试'})
         elif path == '/api/jd/current':
             if not self.has_token():
                 return
@@ -190,6 +209,8 @@ class StudioHandler(BaseHTTPRequestHandler):
     def send_page(self, asset):
         nonce = secrets.token_urlsafe(24)
         content = asset.read_text(encoding='utf-8').replace('__CSP_NONCE__', nonce)
+        if asset.name == 'index.html':
+            content = content.replace('href="styles.css"', 'href="/demo/styles.css"').replace('<script src="preview.js"', '<script nonce="' + nonce + '" src="/demo/preview.js"')
         policy = (f"default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'nonce-{nonce}'; "
                   "img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; "
                   "base-uri 'none'; form-action 'self'; frame-ancestors 'self'")
@@ -207,7 +228,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
+        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
             self.send_json(404, {'error': '接口不存在'})
             return
         if not self.has_token():
@@ -239,7 +260,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     raise ValueError('JD 正文为空或过长')
                 self.analyze_jd(request['jd'])
                 return
-            if endpoint != '/api/generate':
+            if endpoint not in ('/api/generate', '/api/selection'):
                 if not isinstance(request, dict):
                     raise ValueError('请求必须为对象')
                 if endpoint == '/api/ai/recommend':
@@ -250,10 +271,10 @@ class StudioHandler(BaseHTTPRequestHandler):
                     return
                 self.workspace_write(endpoint, request)
                 return
-            allowed = {'jd', 'title', 'company', 'url', 'language', 'family'}
+            allowed = {'jd', 'title', 'company', 'url', 'language', 'family', 'project_priorities', 'selection_budget'}
             if not isinstance(request, dict) or set(request) - allowed:
                 raise ValueError('输入包含不支持的字段')
-            if any(not isinstance(value, str) for value in request.values()):
+            if any(not isinstance(value, str) for key, value in request.items() if key not in {'project_priorities', 'selection_budget'}):
                 raise ValueError('JD 与岗位信息须为文字')
             if not request.get('jd', '').strip():
                 raise ValueError('请先粘贴岗位 JD 正文')
@@ -273,6 +294,10 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json(409, {'error': '已有一份简历正在生成，请完成后重试'})
             return
         try:
+            if endpoint == '/api/selection':
+                from resume_pipeline import preview_selection
+                self.send_json(200, preview_selection(self.server.case, request))
+                return
             result = self.server.generate_func(self.server.case, request, font=self.server.font)
             if not isinstance(result, dict) or not isinstance(result.get('files'), dict):
                 raise RuntimeError('生成器返回了无效结果')

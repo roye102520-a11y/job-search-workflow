@@ -43,12 +43,12 @@ function render(result){
     for(const warning of job.warnings)card.append(el('p',warning));
     if(job.duplicate_of)card.append(el('p','与 #'+job.duplicate_of+' 使用相同规范化链接；未重复计入缺口。'));
     const details=el('details');details.append(el('summary','查看逐项证据与待核实点'));
-    for(const item of job.requirements)details.append(el('p',item.text+' → '+({supported:'有相关证据',unknown:'待核实',not_met:'不满足'}[item.status])+'；'+item.reason+(item.evidence_refs.length?'；证据：'+item.evidence_refs.join('、'):'')));
+    for(const item of job.requirements)details.append(el('p',item.text+' → '+({supported:'有相关证据',partial:'部分相关',unknown:'待核实',not_met:'不满足'}[item.status])+'；'+item.reason+(item.evidence_refs.length?'；证据：'+item.evidence_refs.join('、'):'')));
     card.append(details);list.append(card);
   }
   $('gaps').replaceChildren();
   if(!result.gaps.length)$('gaps').append(el('p','本批没有可统计的缺口；仍需核对规则未识别的要求。'));
-  for(const gap of result.gaps){const card=el('article');card.append(el('h3',gap.topic),el('p','优先级 '+gap.priority+' · '+gap.job_count+' 个岗位 · '+gap.required_count+' 个岗位列为必需项'),el('p',gap.next_action),el('p','交付物：'+gap.deliverable));const detail=el('details');detail.append(el('summary','查看原始要求'));for(const x of gap.examples)detail.append(el('p','#'+x.job_id+'：'+x.requirement+'（'+(x.status==='unknown'?'待核实':'不满足')+'）'));card.append(detail);$('gaps').append(card);}
+  for(const gap of result.gaps){const card=el('article');card.append(el('h3',gap.topic),el('p','优先级 '+gap.priority+' · '+gap.job_count+' 个岗位 · '+gap.required_count+' 个岗位列为必需项'),el('p',gap.next_action),el('p','交付物：'+gap.deliverable));const detail=el('details');detail.append(el('summary','查看原始要求'));for(const x of gap.examples)detail.append(el('p','#'+x.job_id+'：'+x.requirement+'（'+({unknown:'待核实',partial:'部分相关',not_met:'不满足'}[x.status]||'待核实')+'）'));card.append(detail);$('gaps').append(card);}
 }
 async function refresh(){
   const result=await api('/api/strategy/followups');const list=$('followups');list.replaceChildren(el('p',result.note));
