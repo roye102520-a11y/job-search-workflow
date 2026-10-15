@@ -1,0 +1,14 @@
+PASS public preview labels scope and five entrances
+PASS five job seeker scenarios expose start result and next step
+PASS public role switching and review are synthetic only
+PASS empty local case begins with intake and recovers from invalid material
+PASS complete local case offers direct JD and goal preferences
+PASS JD requirements and all evidence are inspectable
+PASS generation retains review state and reuses exact repeat
+PASS manual direction cannot bypass unsupported role
+PASS board has six states and generated material never becomes submitted
+PASS BOSS screening refreshes saved data and shows unknown verification
+PASS mobile responsive layout and keyboard focus
+PASS service worker caches only shell and no personal preview
+PASS input keyboard focus meets declared ring
+PASS no browser JavaScript errors

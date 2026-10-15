@@ -209,7 +209,7 @@ def snapshot(case):
     event_file = local_file(case, 'application-events.jsonl')
     submitted = set()
     if event_file.is_file():
-        events, seen = [], {}
+        events, seen, conflicted_ids = [], {}, set()
         for line in event_file.read_text(encoding='utf-8').splitlines():
             if not line.strip():
                 continue
@@ -219,11 +219,12 @@ def snapshot(case):
                 if not isinstance(event, dict) or not isinstance(identifier, str) or not identifier:
                     raise ValueError('事件缺少编号')
                 if identifier in seen and seen[identifier] != event:
+                    conflicted_ids.add(identifier)
                     raise ValueError('事件编号冲突')
                 seen[identifier] = event
             except (ValueError, AttributeError):
                 issues.append('部分投递事件无法核对，未计入确认投递')
-        events = list(seen.values())
+        events = [event for identifier, event in seen.items() if identifier not in conflicted_ids]
         for event in events:
             if event.get('action') != 'attempt_result' or event.get('result') != 'submitted':
                 continue

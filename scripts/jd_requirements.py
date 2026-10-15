@@ -146,6 +146,18 @@ def assess(jd, evidence):
                 status = 'supported' if all(p == 'supported' for p in parts) else 'partial' if any(p != 'unknown' for p in parts) else 'unknown'
                 refs = list(dict.fromkeys(all_refs))
                 reason = '逐项找到直接表述。' if status == 'supported' else '仅部分条件或相邻实践有证据；场景、熟练度和完整责任尚未证明。'
+        # A degree in a compound statement must not hide another hard condition.
+        if degree and (years or any(re.search(trigger, text, re.I) for trigger, _, _ in CONCEPTS) or re.search(r'工作许可|出差|英语|english|travel|work authorization', text, re.I)):
+            remaining = re.sub(r'本科|bachelor(?:[’\']s)?|undergraduate|硕士|master(?:[’\']s)?|博士|phd|doctorate', '', text, flags=re.I)
+            extra = assess('任职要求：' + remaining, evidence)
+            if extra:
+                if status != 'not_met' and any(i['status'] != 'supported' for i in extra):
+                    status = 'partial' if refs or any(i['evidence_refs'] for i in extra) else 'unknown'
+                if status == 'unknown' and any(i['evidence_refs'] for i in extra):
+                    status = 'partial'
+                index.update({ref['id']: ref for item in extra for ref in item.get('evidence', [])})
+                refs = list(dict.fromkeys(refs + [ref for i in extra for ref in i['evidence_refs']]))
+                reason += ' 同条中的其余条件分别核对，不能由学历覆盖。'
         output.append({'text': text, 'level': level, 'status': status, 'reason': reason,
                        'evidence_refs': refs, 'evidence': [index[r] for r in refs if r in index], 'human_review_required': True})
     return output

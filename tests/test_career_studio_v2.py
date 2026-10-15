@@ -195,3 +195,29 @@ class V2AdditionalEvidenceTests(unittest.TestCase):
     def test_ongoing_education_is_partial(self):
         d={'person':{'education_zh':'合成大学｜本科在读｜预计2027毕业'},'entries':[]}
         self.assertEqual(assess('必需：本科。',d)[0]['status'],'partial')
+
+    def test_company_size_normalization_and_partial_overlap(self):
+        row={'url':'https://www.zhipin.com/job_detail/Ab1234567890.html','company':'合成','title':'运营','description':'维护用户关系','company_size':'1,000—9,999人'}
+        self.assertEqual(boss.evaluate_jobs([row],{'company_sizes':['1000-9999']})['results'][0]['status'],'shortlist')
+        self.assertEqual(boss.evaluate_jobs([{**row,'company_size':'500-1500人'}],{'company_sizes':['1000-9999']})['results'][0]['status'],'needs_verification')
+        self.assertEqual(boss.evaluate_jobs([{**row,'company_size':'大型公司'}],{'company_sizes':['1000-9999']})['results'][0]['status'],'needs_verification')
+
+    def test_title_only_without_keyword_does_not_exclude_unknown_jd(self):
+        row={'url':'https://www.zhipin.com/job_detail/Ab1234567890.html','company':'合成','title':'综合助理'}
+        self.assertEqual(boss.evaluate_jobs([row],{'keywords':['用户运营']})['results'][0]['status'],'needs_verification')
+
+    def test_composite_degree_does_not_hide_sql_requirement(self):
+        d={'person':{'education_zh':'合成大学｜本科'},'entries':[]}
+        item=assess('必需：本科且熟练使用 SQL。',d)[0]
+        self.assertEqual(item['status'],'partial')
+        self.assertTrue(summary([item])['required_blockers'])
+
+    def test_conflicting_event_id_never_counts_as_confirmed_submission(self):
+        with tempfile.TemporaryDirectory() as name:
+            case=Path(name);(case/'receipt.md').write_text('合成回执')
+            start={'event_id':'start','action':'attempt_started','attempt_id':'attempt','job_key':'one','timestamp':'2026-01-01T00:00:00+00:00'}
+            submitted={'event_id':'result','action':'attempt_result','attempt_id':'attempt','job_key':'one','timestamp':'2026-01-02T00:00:00+00:00','result':'submitted','source':'user_report','evidence_path':'receipt.md'}
+            conflict={**submitted,'result':'not_submitted'}
+            (case/'application-events.jsonl').write_text('\n'.join(json.dumps(e) for e in [start,submitted,conflict])+'\n')
+            self.assertEqual(workspace.snapshot(case)['stats']['submitted'],0)
+            self.assertTrue(workspace.snapshot(case)['warnings'])

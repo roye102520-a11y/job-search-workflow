@@ -278,6 +278,20 @@ def _open_count(value: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _size_range(value):
+    text = unicodedata.normalize('NFKC', value).replace(' ', '').replace(',', '')
+    match = re.fullmatch(r'(\d+)[-~～—–](\d+)(?:人|名)?', text)
+    if match and int(match[1]) <= int(match[2]):
+        return int(match[1]), int(match[2])
+    match = re.fullmatch(r'(?:少于|<)(\d+)(?:人|名)?', text)
+    if match:
+        return 0, int(match[1]) - 1
+    match = re.fullmatch(r'(\d+)(?:人|名)?(?:以上|\+)', text)
+    if match:
+        return int(match[1]), float('inf')
+    return None
+
+
 def _weekends(text: str) -> str:
     compact = re.sub(r'\s+', '', text)
     if _WEEKEND_NEGATIVE.search(compact):
@@ -350,6 +364,8 @@ def evaluate_jobs(rows: list[dict], config: dict) -> dict:
             hits = [word for word in clean['keywords'] if word.casefold() in searchable]
             if hits:
                 reasons.append('命中岗位关键词：' + '、'.join(hits))
+            elif not job['description']:
+                checks.append('只有标题，尚无完整 JD，无法排除未命中关键词的岗位。')
             else:
                 exclusions.append('岗位文字未命中设置的关键词。')
         if clean['cities']:
@@ -366,7 +382,16 @@ def evaluate_jobs(rows: list[dict], config: dict) -> dict:
             elif _key(job['company_size']) in {_key(size) for size in clean['company_sizes']}:
                 reasons.append('公司规模符合设置：' + job['company_size'])
             else:
-                exclusions.append('公司规模不在所选范围：' + job['company_size'])
+                actual_size = _size_range(job['company_size'])
+                allowed_sizes = [_size_range(size) for size in clean['company_sizes']]
+                if not actual_size or any(size is None for size in allowed_sizes):
+                    checks.append('公司规模口径无法比较，需核实：' + job['company_size'])
+                elif any(size[0] <= actual_size[0] and actual_size[1] <= size[1] for size in allowed_sizes):
+                    reasons.append('公司规模数值区间符合设置：' + job['company_size'])
+                elif all(actual_size[1] < size[0] or actual_size[0] > size[1] for size in allowed_sizes):
+                    exclusions.append('公司规模不在所选范围：' + job['company_size'])
+                else:
+                    checks.append('公司规模区间仅部分符合设置：' + job['company_size'])
         if clean['min_salary_k'] is not None or clean['max_salary_k'] is not None:
             low, high = _salary_range_k(job['salary'])
             if low is None or high is None:

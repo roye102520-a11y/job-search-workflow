@@ -53,3 +53,11 @@ job-search-cases/<case>/
 授权记录写清目标岗位/收件人、动作、渠道、材料版本和范围；只引用真实用户指令，不能自行填成 approved。不要保存密码、验证码、Cookie 或访问令牌。
 
 具体本地读写优先使用 [脚本操作](scripts.md)；旧档缺字段或缺事件时提示迁移缺口，不能为让统计脚本通过而编造历史尝试。
+
+## V2 增量字段
+
+schema_version=1 保持兼容。证据可以补 `confirmation_status`（confirmed/pending/conflict/rejected）或 `confirmed:false`，冲突可以写 `conflict/conflicts`；unconfirmed 对象可用 `entry_id/bullet_id/evidence_refs` 明确关联条目。关联待确认事实不用于材料。旧档未含状态不能被系统伪装为本人确认。
+
+完整性 `person.education_complete/experience_complete` 仅在本人确认后补写；缺省未知完整性。学历缺失时保留 unknown，而不是要求补一个固定学历。英语、出差和许可可保存于带来源的 capabilities 事实。
+
+要求状态 supported/partial/unknown/not_met；必需项只有 supported 不形成自动证据阻断，仍需人工语义/版面/授权审阅。新 selection 加 `evidence_digest`、`selection.candidates`、规则版本、篇幅和项目优先级；旧 selection 保留来源摘要读取，建议重生成再外发。

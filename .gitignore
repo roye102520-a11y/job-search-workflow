@@ -9,3 +9,5 @@ generated/
 job-search-cases/
 material-inbox/
 *.log
+node_modules/
+!docs/career-studio-v2/evidence/*.log
