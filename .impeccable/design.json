@@ -1,323 +1,79 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-14T18:03:51.469808Z",
-  "title": "Design System: Career Studio V2",
+  "generatedAt": "2026-10-15T04:26:25.651964+00:00",
+  "title": "Career Studio · 经典界面（48ca8e4 视觉 / V2 功能）",
   "extensions": {
     "colorMeta": {
-      "bg": {
-        "role": "neutral",
-        "displayName": "暖白底色"
-      },
-      "surface": {
-        "role": "neutral",
-        "displayName": "白色表面"
-      },
-      "ink": {
-        "role": "neutral",
-        "displayName": "正文绿灰"
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "次级绿灰"
-      },
-      "line": {
-        "role": "neutral",
-        "displayName": "细边线"
-      },
       "accent": {
         "role": "primary",
-        "displayName": "深绿"
+        "displayName": "本地 / 公开页蓝色"
       },
-      "accent-hover": {
+      "jd-green": {
         "role": "primary",
-        "displayName": "悬停深绿"
+        "displayName": "JD 深绿"
       },
-      "soft": {
-        "role": "primary",
-        "displayName": "浅绿"
-      },
-      "selection": {
+      "bg": {
         "role": "neutral",
-        "displayName": "文本选区"
-      },
-      "warning": {
-        "role": "status",
-        "displayName": "待核实琥珀"
-      },
-      "error": {
-        "role": "status",
-        "displayName": "矛盾砖红"
-      },
-      "jd-paper": {
-        "role": "neutral",
-        "displayName": "JD 纸面"
-      },
-      "jd-ink": {
-        "role": "neutral",
-        "displayName": "JD 正文"
-      },
-      "jd-muted": {
-        "role": "neutral",
-        "displayName": "JD 次级文字"
-      },
-      "jd-line": {
-        "role": "neutral",
-        "displayName": "JD 边线"
-      },
-      "jd-field": {
-        "role": "neutral",
-        "displayName": "JD 输入面"
-      },
-      "jd-gap-bg": {
-        "role": "status",
-        "displayName": "证据缺口背景"
-      },
-      "jd-conflict-bg": {
-        "role": "status",
-        "displayName": "明确不满足背景"
+        "displayName": "经典灰白"
       }
     },
     "typographyMeta": {
-      "headline": {
-        "displayName": "公开页主标题",
-        "purpose": "公开页桌面主任务标题。"
-      },
-      "headline-mobile": {
-        "displayName": "公开 / 本地手机主标题",
-        "purpose": "公开页与本地工作台 ≤760px。"
-      },
       "headline-local": {
-        "displayName": "本地主标题",
-        "purpose": "本地工作台桌面任务标题。"
-      },
-      "headline-jd": {
-        "displayName": "JD 主标题",
-        "purpose": "JD 工作区桌面标题。"
-      },
-      "headline-jd-mobile": {
-        "displayName": "JD 窄屏主标题",
-        "purpose": "JD 工作区 ≤870px 沿用的标题。"
-      },
-      "title-public": {
-        "displayName": "公开页分区标题",
-        "purpose": "一般 h2；决策列有自己的 18px 覆盖。"
-      },
-      "title-local": {
-        "displayName": "本地分区标题",
-        "purpose": "本地一般 h2。"
-      },
-      "title-jd": {
-        "displayName": "JD 卡片标题",
-        "purpose": "JD 输入、证据及预览的 h2。"
-      },
-      "body": {
-        "displayName": "公开页正文",
-        "purpose": "公开页正文与继承正文的动作。"
-      },
-      "body-local": {
-        "displayName": "本地正文",
-        "purpose": "本地工作台正文。"
-      },
-      "body-jd": {
-        "displayName": "JD 正文",
-        "purpose": "JD 默认正文；证据与选材说明另为 13px。"
-      },
-      "label": {
-        "displayName": "次级说明",
-        "purpose": "V2 复用说明字号。"
-      },
-      "action-local": {
-        "displayName": "本地动作文字",
-        "purpose": "本地主要 / 次级动作。"
-      },
-      "action-jd": {
-        "displayName": "JD 动作文字",
-        "purpose": "JD 主要动作。"
+        "displayName": "原本地主标题",
+        "purpose": "恢复用户选定的历史视觉"
       }
     },
-    "shadows": [
-      {
-        "name": "website-preview",
-        "value": "0 15px 45px #00000005",
-        "purpose": "本地原有网站预览容器的低强度阴影。"
-      }
-    ],
-    "motion": [
-      {
-        "name": "local-control-transition",
-        "value": "background .2s, color .2s",
-        "purpose": "本地按钮 / 链接；仅 prefers-reduced-motion:no-preference 时。"
-      },
-      {
-        "name": "jd-field-transition",
-        "value": "border-color .15s, box-shadow .15s",
-        "purpose": "JD 输入框已有过渡。"
-      },
-      {
-        "name": "jd-spinner",
-        "value": "spin 1s linear infinite",
-        "purpose": "JD 生成过程中的忙碌指示；spin 将 transform 旋转到 360deg。"
-      }
-    ],
-    "breakpoints": [
-      {
-        "name": "public-stack-max",
-        "value": "760px"
-      },
-      {
-        "name": "public-board-single-max",
-        "value": "380px"
-      },
-      {
-        "name": "local-wide-min",
-        "value": "1600px"
-      },
-      {
-        "name": "local-two-equal-max",
-        "value": "1000px"
-      },
-      {
-        "name": "local-stack-max",
-        "value": "760px"
-      },
-      {
-        "name": "local-scroll-nav-max",
-        "value": "520px"
-      },
-      {
-        "name": "local-board-single-max",
-        "value": "420px"
-      },
-      {
-        "name": "jd-two-columns-max",
-        "value": "1200px"
-      },
-      {
-        "name": "jd-headline-small-max",
-        "value": "870px"
-      },
-      {
-        "name": "jd-stack-max",
-        "value": "760px"
-      }
-    ]
+    "roundedMeta": {},
+    "spacingMeta": {}
   },
   "components": [
     {
-      "name": "Primary Button · Public",
+      "name": "Classic primary button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "公开演示的主要下一步动作。",
-      "html": "<button class=\"ds-primary-public\" type=\"button\">查看建档方式</button>",
-      "css": ".ds-primary-public{display:inline-flex;align-items:center;justify-content:center;background:var(--accent,#285742);color:#fff;border:0;border-radius:8px;padding:11px 18px;min-height:44px;font:15px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Helvetica Neue\",sans-serif;cursor:pointer}.ds-primary-public:hover{background:#214b37}.ds-primary-public:focus-visible{outline:3px solid var(--accent,#285742);outline-offset:3px}"
+      "description": "原蓝色胶囊按钮",
+      "html": "<button class=\"ds-classic-primary\" type=\"button\">分析新岗位</button>",
+      "css": ".ds-classic-primary{background:#0066cc;color:white;border:0;border-radius:24px;padding:12px 21px;font:14px/1.6 -apple-system,sans-serif;cursor:pointer}.ds-classic-primary:focus-visible{outline:3px solid #0066cc;outline-offset:3px}"
     },
     {
-      "name": "Primary Button · JD",
-      "kind": "button",
-      "refersTo": "button-primary-jd",
-      "description": "JD 工作区先分析要求与证据的动作。",
-      "html": "<button class=\"ds-primary-jd\" type=\"button\">先分析要求与证据</button>",
-      "css": ".ds-primary-jd{display:flex;justify-content:center;align-items:center;gap:10px;width:100%;min-height:45px;margin-top:5px;background:var(--green,#285742);color:#fff;border:0;border-radius:9px;padding:11px 18px;font:600 13px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer}.ds-primary-jd:hover{background:#214b37}.ds-primary-jd:focus-visible{outline:3px solid var(--green,#285742);outline-offset:3px}.ds-primary-jd:disabled{opacity:.65;cursor:wait}"
-    },
-    {
-      "name": "Secondary Button · Public",
-      "kind": "button",
-      "refersTo": "button-secondary",
-      "description": "合成档案体验等次级动作。",
-      "html": "<button class=\"ds-secondary-public\" type=\"button\">体验已有合成档案</button>",
-      "css": ".ds-secondary-public{background:var(--soft,#eaf0e9);color:var(--accent,#285742);border:0;border-radius:8px;padding:10px 16px;min-height:44px;font:15px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Helvetica Neue\",sans-serif;cursor:pointer}.ds-secondary-public:focus-visible{outline:3px solid var(--accent,#285742);outline-offset:3px}"
-    },
-    {
-      "name": "Text Action · Public",
-      "kind": "button",
-      "refersTo": "button-text",
-      "description": "从任务摘要继续到档案或岗位。",
-      "html": "<button class=\"ds-text-public\" type=\"button\">查看我的档案</button>",
-      "css": ".ds-text-public{background:transparent;color:var(--accent,#285742);border:0;border-radius:8px;padding:10px 0;min-height:44px;font:15px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Helvetica Neue\",sans-serif;cursor:pointer}.ds-text-public:focus-visible{outline:3px solid var(--accent,#285742);outline-offset:3px}"
-    },
-    {
-      "name": "Input Field · JD",
-      "kind": "input",
-      "refersTo": "field-jd",
-      "description": "带持续标签的本地岗位输入，保留鼠标与键盘 focus 差异。",
-      "html": "<label class=\"ds-field-label\" for=\"ds-jd-role\">岗位名称<span class=\"ds-field-optional\">选填</span></label><input class=\"ds-field-jd\" id=\"ds-jd-role\" placeholder=\"例如：用户运营专员\">",
-      "css": ".ds-field-label{display:block;font:600 12px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;color:#39483e;margin-bottom:7px}.ds-field-optional{font-size:12px;font-weight:400;color:#626b65;margin-left:5px}.ds-field-jd{width:100%;min-width:0;border:1px solid var(--line,#dfe5dd);border-radius:8px;padding:10px 12px;background:#fdfefa;color:var(--ink,#222d27);caret-color:var(--green,#285742);font:14px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;transition:border-color .15s,box-shadow .15s}.ds-field-jd::placeholder{color:#626b65;font-size:12px}.ds-field-jd:focus{border-color:#799785;box-shadow:0 0 0 3px #e8eee7;outline:none}.ds-field-jd:focus-visible{outline:3px solid var(--green,#285742);outline-offset:3px;box-shadow:none}"
-    },
-    {
-      "name": "Navigation · Public",
-      "kind": "nav",
-      "refersTo": "navigation-public-current",
-      "description": "公开演示的五入口导航样式；手机横向滚动。",
-      "html": "<nav class=\"ds-nav-public\" aria-label=\"求职工作区\"><button type=\"button\" aria-current=\"page\">工作台</button><button type=\"button\">我的档案</button><button type=\"button\">岗位与简历</button><button type=\"button\">求职进度</button><button type=\"button\">作品展示</button></nav>",
-      "css": ".ds-nav-public{display:flex;justify-content:center;gap:12px;padding:12px 16px;background:var(--bg,#f7f6f2);border-bottom:1px solid var(--line,#d9ded8)}.ds-nav-public button{border:0;border-radius:8px;background:transparent;color:var(--muted,#626b65);padding:10px 16px;min-height:44px;font:15px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Helvetica Neue\",sans-serif;cursor:pointer}.ds-nav-public button[aria-current]{color:var(--accent,#285742);background:var(--soft,#eaf0e9);font-weight:650}.ds-nav-public button:focus-visible{outline:3px solid var(--accent,#285742);outline-offset:3px}@media(max-width:760px){.ds-nav-public{justify-content:flex-start;gap:4px;overflow-x:auto}.ds-nav-public button{white-space:nowrap;flex:none;font-size:13px}}"
-    },
-    {
-      "name": "Navigation · Local",
+      "name": "Classic navigation",
       "kind": "nav",
       "refersTo": "navigation-local-current",
-      "description": "本地工作台保留深色选中胶囊，与公开导航有别。",
-      "html": "<nav class=\"ds-nav-local\" aria-label=\"求职工作区\"><button type=\"button\" aria-current=\"page\">工作台</button><button type=\"button\">我的档案</button><button type=\"button\">岗位与简历</button><button type=\"button\">求职进度</button><button type=\"button\">作品展示</button></nav>",
-      "css": ".ds-nav-local{display:flex;justify-content:center;gap:12px;padding:12px 20px;background:var(--bg,#f7f6f2);border-block:1px solid #e5e5e870;flex-wrap:wrap}.ds-nav-local button{border:0;border-radius:20px;background:transparent;color:var(--muted,#626b65);padding:8px 17px;font:13px/1.6 -apple-system,BlinkMacSystemFont,\"SF Pro Display\",\"PingFang SC\",\"Helvetica Neue\",sans-serif;cursor:pointer}.ds-nav-local button[aria-current=page]{background:var(--ink,#242b28);color:#fff}.ds-nav-local button:hover:not([aria-current=page]){background:#e9e9ec}.ds-nav-local button:focus-visible{outline:3px solid var(--blue,#285742);outline-offset:3px}@media(max-width:760px){.ds-nav-local{gap:2px;padding:9px 10px;justify-content:space-between}.ds-nav-local button{padding:7px 9px}}@media(max-width:520px){.ds-nav-local{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;white-space:nowrap}.ds-nav-local button{min-height:42px;flex:0 0 auto}}"
+      "description": "原六项导航与深色选中胶囊",
+      "html": "<nav class=\"ds-classic-nav\" aria-label=\"求职工作区\"><button aria-current=\"page\">总览</button><button>素材与作品集</button><button>JD 简历</button><button>投递进度</button><button>面试复盘</button><button>个人网站</button></nav>",
+      "css": ".ds-classic-nav{display:flex;gap:12px;overflow-x:auto;background:#f5f5f7;padding:12px 20px}.ds-classic-nav button{border:0;border-radius:20px;padding:8px 17px;background:transparent;color:#6e6e73;white-space:nowrap}.ds-classic-nav [aria-current]{background:#1d1d1f;color:white}"
     },
     {
-      "name": "Evidence State · Gap",
-      "kind": "chip",
-      "refersTo": "chip-gap",
-      "description": "静态标签同时写出证据判断与要求等级。",
-      "html": "<span class=\"ds-chip-gap\">证据不足 · 必需</span>",
-      "css": ".ds-chip-gap{display:inline-block;font:12px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;padding:3px 8px;border-radius:4px;background:#fbf0dd;color:#81551d}"
-    },
-    {
-      "name": "Card · JD",
-      "kind": "card",
-      "refersTo": "card-jd",
-      "description": "无阴影的证据与差距容器，手机缩减内边距。",
-      "html": "<section class=\"ds-card-jd\"><h2>证据与差距</h2><p>粘贴完整 JD 后，先分析要求与证据。</p></section>",
-      "css": ".ds-card-jd{background:var(--card,#fff);border:1px solid var(--line,#dfe5dd);border-radius:12px;padding:22px;color:var(--ink,#222d27);font:14px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;box-shadow:none}.ds-card-jd h2{font-size:17px;font-weight:650;letter-spacing:-.25px;margin:0}.ds-card-jd p{font-size:13px;color:var(--muted,#6b756e);overflow-wrap:anywhere}@media(max-width:760px){.ds-card-jd{padding:20px}}"
-    },
-    {
-      "name": "Evidence Disclosure",
+      "name": "JD evidence review",
       "kind": "custom",
-      "description": "要求与理由先展示，证据来源通过原生 details 渐进展开。",
-      "html": "<article class=\"ds-evidence\"><h3>具有内容整理经验</h3><span class=\"ds-evidence-state\">直接证据 · 必需</span><p>逐项找到直接表述。</p><details><summary>查看 1 条证据与来源</summary><p>合成示例事实 · 来源 career-evidence-bank.md#demo</p><button class=\"ds-source-action\" type=\"button\">查看原始事实库</button></details></article>",
-      "css": ".ds-evidence{border-top:1px solid var(--line,#dfe5dd);padding:14px 0;color:var(--ink,#222d27);font:14px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif}.ds-evidence h3{font-size:14px;margin:16px 0 8px}.ds-evidence p{font-size:13px;overflow-wrap:anywhere}.ds-evidence-state{display:inline-block;font-size:12px;padding:3px 8px;border-radius:4px;background:var(--soft,#eaf0e9);color:var(--green,#285742)}.ds-evidence details{margin-top:20px}.ds-evidence summary{font-size:13px;cursor:pointer}.ds-evidence summary:focus-visible{outline:3px solid var(--green,#285742);outline-offset:3px}.ds-source-action{background:transparent;color:var(--green,#285742);border:0;min-height:36px;padding:6px 0;font:12px/1.65 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer}.ds-source-action:focus-visible{outline:3px solid var(--green,#285742);outline-offset:3px}"
+      "description": "原两栏主体下面的新证据审阅区",
+      "html": "<section class=\"ds-jd-review\"><h2>要求、证据与选材</h2><p>原始事实、来源与未选原因仍可追溯。</p></section>",
+      "css": ".ds-jd-review{background:white;color:#222d27;border:1px solid #dfe5dd;border-radius:16px;padding:26px;font:14px/1.65 -apple-system,sans-serif}"
     }
   ],
   "narrative": {
-    "northStar": "Apple clarity / Airbnb friendliness",
-    "overview": "以清楚的任务层级、系统字体和温暖中性色承载求职工作。深绿承担主要动作与相关状态，文字、留白和细分隔线组织内容。页面保持接近原生控件的熟悉感，让第一次使用的人也能看懂下一步。\n\n这是已有构建的 Operate / code-led 设计记录，保留当前视觉方向。提取依据是 `public/index.html`、`public/styles.css`、`public/preview.js`、`assets/career-workspace.html`、`assets/career-workspace.css`、`assets/career-workspace.js`、`assets/jd-studio.html` 及存量桌面 / 手机截图。前置 token 记录实际复用值；三种 surface 的差异分别列出，后续屏幕应沿用所属 surface 的值。",
+    "northStar": "用户确认的 48ca8e4 历史视觉，保留 V2 功能与安全",
+    "overview": "恢复经典灰白、蓝色、大标题、圆角卡片和六项导航。JD 保留原米白深绿及两栏主体。",
     "keyCharacteristics": [
-      "温暖中性色与一个主要深绿强调色。",
-      "系统字体，清楚标题与易扫描的短段落。",
-      "平面层次、细分隔线与轻圆角。",
-      "核心内容先呈现，证据来源与高级功能渐进展开。",
-      "手机正文顺序堆叠，导航保持可访问。"
+      "历史视觉是恢复基准",
+      "业务逻辑不回退",
+      "证据与选材渐进展示"
     ],
     "rules": [
       {
-        "name": "The Primary Accent Rule",
-        "body": "新增核心任务组件沿用深绿作为主要强调色。现有次级工具仍含历史蓝、紫及不同状态背景；它们是已实现差异，不是新的全局 palette。",
-        "section": "colors"
-      },
-      {
-        "name": "The Surface Type Rule",
-        "body": "不把公开页、本地和 JD 的字号 / 行高差异写成一套统一值。新增页面先选择所属 surface，再复用它的层级。",
-        "section": "typography"
+        "name": "Preserve approved classic UI",
+        "body": "不得再次用五项导航、暖绿任务首页或三栏 JD 主体替换用户确认的历史布局。",
+        "section": "layout"
       }
     ],
     "dos": [
-      "Do 沿用所属 surface 的系统字体、字号和中性色组。",
-      "Do 让主要动作、状态文字和下一步形成清楚层级。",
-      "Do 为按钮、链接、字段、summary 和选择胶囊保留可见键盘焦点。",
-      "Do 在窄屏按内容顺序堆叠，并保留可访问的导航。",
-      "Do 用文字区分直接证据、部分相关、证据不足与明确不满足。",
-      "Do 保留来源和候选理由的渐进展开及独立版本入口。"
+      "保留事实与来源、独立材料和六阶段状态",
+      "新增能力适配到旧界面"
     ],
     "donts": [
-      "Don't 将三个 surface 的字号、圆角、间距或响应式规则写成单一默认值。",
-      "Don't 为核心任务页添加未确认的第二强调色、装饰插图或入场动画。",
-      "Don't 用过浅的说明文字或取消轮廓来隐藏键盘焦点。",
-      "Don't 将某一页的三列结构扩大为所有页面的布局要求。"
+      "整仓回退",
+      "删除新版能力",
+      "自动生产部署"
     ]
   }
 }

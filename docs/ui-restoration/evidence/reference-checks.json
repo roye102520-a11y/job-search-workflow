@@ -1,0 +1,70 @@
+[
+  {
+    "version": "before",
+    "surface": "workspace",
+    "status": 200,
+    "headings": [
+      "分析一个新岗位。",
+      "我的档案",
+      "岗位与简历",
+      "求职进度",
+      "把每次回答，变成下一次进步。",
+      "作品展示"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "surface": "jd",
+    "status": 200,
+    "headings": [
+      "先核对证据，再生成简历。"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "surface": "public",
+    "status": 200,
+    "headings": [
+      "上传简历，建立求职档案。",
+      "我的档案",
+      "先看岗位要求，再决定选材。",
+      "每次申请，保留真实进度。",
+      "作品展示，按需要制作。"
+    ],
+    "errors": []
+  },
+  {
+    "version": "classic-48ca8e4",
+    "surface": "workspace",
+    "status": 200,
+    "headings": [
+      "每一步准备。都成为下一次机会。",
+      "让经历，有据可循。",
+      "让岗位，读懂你的价值。",
+      "进度，有迹可循。",
+      "把每次回答，变成下一次进步。",
+      "一个网站。展示你的完整实践。"
+    ],
+    "errors": []
+  },
+  {
+    "version": "classic-48ca8e4",
+    "surface": "jd",
+    "status": 200,
+    "headings": [
+      "一个 JD，一份对应的简历。"
+    ],
+    "errors": []
+  },
+  {
+    "version": "classic-48ca8e4",
+    "surface": "public",
+    "status": 200,
+    "headings": [
+      "同一份经历，为每份岗位重新选材。"
+    ],
+    "errors": []
+  }
+]

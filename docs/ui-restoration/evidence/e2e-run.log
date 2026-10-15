@@ -1,0 +1,17 @@
+PASSED public preview restores classic landing and labels synthetic scope
+PASSED five job seeker scenarios expose start result and next step
+PASSED public role switching and review are synthetic only
+PASSED empty local case begins with intake and recovers from invalid material
+PASSED complete local case offers direct JD and goal preferences
+PASSED classic six-tab navigation retains projects interview site and lazy JD editor
+PASSED JD requirements and all evidence are inspectable
+PASSED generation retains review state and reuses exact repeat
+PASSED numbered JD analysis and seven-day plan remain available
+PASSED manual direction cannot bypass unsupported role
+PASSED board has six states and generated material never becomes submitted
+PASSED BOSS screening refreshes saved data and shows unknown verification
+PASSED mobile responsive layout and keyboard focus
+PASSED all local surfaces fit phone tablet and desktop widths
+BLOCKED service worker refreshes old shell and caches no personal preview — Existing nonce-only CSP blocks worker registration; server security unchanged. Offline caching is not claimed as passed.
+PASSED input keyboard focus meets declared ring
+PASSED no browser JavaScript errors

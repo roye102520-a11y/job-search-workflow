@@ -28,5 +28,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: career-studio-v2-evidence
-          path: docs/career-studio-v2/evidence/
+          name: career-studio-ui-evidence
+          path: docs/ui-restoration/evidence/
