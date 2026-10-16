@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 from xml.sax.saxutils import escape
+from job_data import canonical_fragment
 from jd_requirements import assess as assess_requirements, summary as requirement_summary
 from evidence_quality import positive_clauses, exclusion_reason
 from evidence_selection import decisions
@@ -27,6 +28,7 @@ FAMILIES = {
     'implementation-support': '项目交付 / 实施支持',
     'product-operations': '产品助理 / 产品运营',
 }
+RULES_VERSION = 3
 TERMS = {
     'user-operations': ['用户运营', '客户运营', '客户成功', '用户服务', '客户服务', '学员', '用户分层', 'customer success', 'customer operations', 'customer support', 'customer service', 'onboarding'],
     'ai-content-operations': ['知识库', '内容运营', '文档清洗', '结构化', '问答', '质量检查', '离线评测', 'knowledge base', 'content operations', 'data annotation', 'ocr'],
@@ -55,7 +57,7 @@ def canonical_job_url(value):
         (key, val) for key, val in parse_qsl(parts.query, keep_blank_values=True)
         if not key.lower().startswith('utm_') and key.lower() not in ignored
     ))
-    return (parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip('/'), query, parts.fragment)
+    return (parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip('/'), query, canonical_fragment(parts.fragment))
 
 
 def _labeled_value(jd, labels):
@@ -145,9 +147,14 @@ def load_evidence(case):
     data = json.loads(path.read_text(encoding='utf-8'))
     require(isinstance(data, dict) and data.get('schema_version') == 1, '证据缓存 schema_version 应为 1')
     require(isinstance(data.get('sources'), list) and data['sources'], '缓存缺少事实源摘要')
+    stale_sources = []
     for source in data['sources']:
-        require(isinstance(source, dict) and sha(local(case, source.get('path'))) == source.get('sha256'),
-                '事实源已变化，请先让 Codex 重新核对证据缓存；不会使用过期表述')
+        if not isinstance(source, dict) or not isinstance(source.get('path'), str):
+            raise ValueError('事实缓存包含无效的来源记录；请先复核来源，不会使用过期表述')
+        if sha(local(case, source['path'])) != source.get('sha256'):
+            stale_sources.append(source['path'])
+    require(not stale_sources,
+            '事实源已变化（' + '、'.join(stale_sources) + '）；请先逐项复核并更新证据缓存，不会使用过期表述')
     require(isinstance(data.get('person'), dict), '缺少 person 信息')
     require(any(isinstance(data['person'].get(k), str) and data['person'][k].strip() for k in ('name_zh', 'name_en')), '缺少当前候选人姓名记录')
     for key in ('name_zh', 'name_en', 'education_zh', 'education_en'):
@@ -291,7 +298,7 @@ def generate(case, request, font=None):
         require(parts.scheme in ('https', 'http') and parts.hostname and not parts.username and not parts.password, '岗位链接格式错误')
     existing_package = existing_package_for_url(case, url) if url else None
     data = load_evidence(case)
-    fingerprint = hashlib.sha256(json.dumps({'request': request, 'evidence': sha(case / 'resume-evidence.json'), 'policy': 2, 'font': str(font or '')}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps({'request': request, 'evidence': sha(case / 'resume-evidence.json'), 'policy': RULES_VERSION, 'font': str(font or '')}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     for prior_path in sorted((case / 'generated').glob('*/result.json')):
         try:
             prior = json.loads(prior_path.read_text(encoding='utf-8'))
@@ -313,7 +320,8 @@ def generate(case, request, font=None):
     result = {'family': family, 'label': routing['label'], 'outcome': routing['outcome'], 'warnings': list(routing['warnings']),
               'output_dir': target.relative_to(case).as_posix(), 'files': {}, 'selected_bullet_ids': [], 'status': 'preparing',
               'requirements': requirements, 'requirement_summary': requirements_summary,
-              'metadata_resolution': metadata_resolution, 'routing': routing, 'generation_fingerprint': fingerprint, 'reused': False}
+              'metadata_resolution': metadata_resolution, 'routing': routing, 'generation_fingerprint': fingerprint,
+              'rules_version': RULES_VERSION, 'reused': False}
     result['warnings'].extend(metadata_warnings)
     if existing_package:
         result['warnings'].append('该官网链接已有岗位包：' + existing_package.relative_to(case).as_posix() + '。本次只生成新的审阅材料，不建立第二个投递清单。')

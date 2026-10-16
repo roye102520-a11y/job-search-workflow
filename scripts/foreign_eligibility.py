@@ -6,6 +6,24 @@ boolean cannot prove a right to work in a particular jurisdiction.
 import re
 from datetime import date
 
+COUNTRIES = (
+    ('CN', r'\bChina\b|中国|mainland China|PRC'),
+    ('GB', r'\bUK\b|United Kingdom|英国|Great Britain'),
+    ('US', r'\bUS\b|\bUSA\b|United States|美国'),
+    ('SG', r'Singapore|新加坡'),
+    ('MY', r'Malaysia|马来西亚'),
+    ('TW', r'Taiwan|台湾'),
+    ('HK', r'Hong Kong|香港'),
+    ('CA', r'Canada|加拿大'),
+    ('AU', r'Australia|澳大利亚'),
+    ('JP', r'Japan|日本'),
+    ('IN', r'India|印度'),
+    ('DE', r'Germany|德国'),
+    ('FR', r'France|法国'),
+    ('IE', r'Ireland|爱尔兰'),
+    ('AE', r'United Arab Emirates|\bUAE\b|阿联酋'),
+)
+
 
 def check(text, person):
     checks = []
@@ -36,25 +54,30 @@ def check(text, person):
         add('graduation_date', status, '按 JD 毕业年份核对；月份窗口或缺少来源时保持待确认。', ref if known else '', value)
 
     if re.search(r'工作许可|work authori[sz]ation|right to work|legally authori[sz]ed|visa sponsorship|签证担保', text, re.I):
-        countries = []
-        for code, pattern in [('CN', r'\bChina\b|中国'), ('GB', r'\bUK\b|United Kingdom|英国'),
-                              ('US', r'\bUS\b|\bUSA\b|United States|美国'), ('SG', r'Singapore|新加坡')]:
-            if re.search(pattern, text, re.I):
-                countries.append(code)
+        countries = [code for code, pattern in COUNTRIES if re.search(pattern, text, re.I)]
         fact = person.get('capabilities', {}).get('work_authorization', {})
-        valid = isinstance(fact, dict) and fact.get('status') == 'confirmed' and fact.get('source_ref')
-        scoped = valid and len(countries) == 1 and countries[0] in fact.get('countries', [])
+        valid = (isinstance(fact, dict) and fact.get('status') == 'confirmed'
+                 and isinstance(fact.get('value'), bool) and isinstance(fact.get('source_ref'), str)
+                 and bool(fact.get('source_ref')))
+        supported_countries = fact.get('countries', []) if valid else []
+        if not isinstance(supported_countries, list):
+            supported_countries = []
+        expiry_valid = True
         expiry = fact.get('valid_until') if valid else None
         if expiry:
             try:
-                scoped = scoped and date.fromisoformat(expiry) >= date.today()
-            except ValueError:
-                scoped = False
-        value = fact.get('value') if scoped else None
-        # Sponsorship and permit are distinct claims, even in the same sentence.
-        status = 'supported' if value is True else 'not_met' if value is False else 'unknown'
-        if re.search(r'sponsor|担保', text, re.I):
-            status = 'unknown'
-        add('work_authorization', status, '工作许可必须对应国家、有效期和雇佣范围；不跨地区复用，也不推断担保条件。',
-            fact.get('source_ref', '') if scoped else '', value)
+                expiry_valid = date.fromisoformat(expiry) >= date.today()
+            except (TypeError, ValueError):
+                expiry_valid = False
+        # A negative answer for one country says nothing about another. If a JD
+        # names several countries, evaluate every one and leave unscoped facts unknown.
+        targets = countries or ['unspecified']
+        for country in targets:
+            scoped = valid and country != 'unspecified' and country in supported_countries and expiry_valid
+            value = fact.get('value') if scoped else None
+            status = 'supported' if value is True else 'not_met' if value is False else 'unknown'
+            kind = 'work_authorization' if country == 'unspecified' else 'work_authorization_' + country
+            add(kind, status,
+                '工作许可须有当前、可追溯且对应工作地区的证据；其他地区的许可记录不参与判断。',
+                fact.get('source_ref', '') if scoped else '', value)
     return checks

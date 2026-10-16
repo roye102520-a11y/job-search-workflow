@@ -50,6 +50,14 @@ job-search-cases/<case>/
 
 从 submission_unknown 恢复时先查申请历史、确认页或已发送邮件；找不到证据仍保持未知，不盲目重投。重复运行先查 job-key、状态、事件和材料版本。面试拒信等事件应追加历史，不能抹去投递日期。重新申请需用户意图及新一轮申请依据，新增 attempt_id 保留旧记录。
 
+## 官方岗位发现增量
+
+官方岗位发现复用同一个 `applications/<job-key>/manifest.json`、`application-tracker.csv` 和 `application-events.jsonl`，不创建第二套申请记录。可选 Manifest 字段 `opportunity_path` 指向岗位观察 JSON；JSON 保存官方职位信息、当前核验结果、匹配结果、规则版本及 `observations`。每次官方读取的原始响应写入独立 `official-sources/<checked-at>-<digest>.txt` 快照；`verification.source_path` 与 `content_sha256` 共同校验当前观察来源。旧档没有这些字段时仍按原 Manifest/Tracker 读取。
+
+岗位发现只登记 `discovered`，不能改成 `submitted`、创建 attempt 或写成功回执。重复导入按 requisition ID/规范 URL 去重；重新核验只追加来源快照并刷新观察 JSON，不改申请阶段、历史材料和事件。仅当已有 Manifest 而 Tracker 摘要行缺失时，才从原 Manifest 恢复该行；如发现另一个岗位键占用相同规范 URL/requisition ID，或旧 Tracker 链接格式无效，则不自动恢复。
+
+本地 API 的岗位列表、导入、发现与 JD Studio 预填接口需要工作台 token，并额外限定 loopback 客户端。默认服务仅绑定 `127.0.0.1`。`verified_open` 只表示最近一次官方读取同时取得完整 JD、职位标题和申请入口；HTTP 成功或 ATS 列表出现不够。核验过期、来源快照缺失、重定向到招聘首页或字段不足时降为未知/过期状态。它不表示岗位一定接受申请或申请已提交。
+
 授权记录写清目标岗位/收件人、动作、渠道、材料版本和范围；只引用真实用户指令，不能自行填成 approved。不要保存密码、验证码、Cookie 或访问令牌。
 
 具体本地读写优先使用 [脚本操作](scripts.md)；旧档缺字段或缺事件时提示迁移缺口，不能为让统计脚本通过而编造历史尝试。

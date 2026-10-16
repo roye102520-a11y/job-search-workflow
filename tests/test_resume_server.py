@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -128,6 +129,43 @@ class StudioHTTPTests(unittest.TestCase):
         self.assertEqual(result['summary']['total'], 2)
         self.assertEqual(len(result['plan']), 7)
         self.assertEqual(self.request('POST', '/api/jd/analyze', payload, {'Content-Type': 'application/json'})[0], 403)
+
+    def test_opportunity_api_is_loopback_token_protected_and_uses_existing_store(self):
+        import foreign_opportunities
+        self.assertEqual(self.request('GET', '/api/opportunities')[0], 403)
+        headers = {'X-Local-Token': self.server.local_token}
+        status, _, body = self.request('GET', '/api/opportunities', headers=headers)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)['jobs'], [])
+        self.assertEqual(self.request('GET', '/api/opportunities/studio?job_key=opportunity-' + 'a' * 20, headers=headers)[0], 400)
+
+        payload = json.dumps({'url': 'https://jobs.lever.co/weloglobal/' + '1' * 8 + '-' + '1' * 4 + '-' + '1' * 4 + '-' + '1' * 4 + '-' + '1' * 12}).encode()
+        with patch.object(foreign_opportunities, 'import_url', return_value={'job_key': 'synthetic', 'duplicate': False, 'status': 'discovered'}) as importer:
+            status, _, body = self.request('POST', '/api/opportunities/import', payload,
+                                           {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token})
+        self.assertEqual(status, 200, body)
+        importer.assert_called_once()
+        self.assertEqual(self.request('POST', '/api/opportunities/import', payload, {'Content-Type': 'application/json'})[0], 403)
+        self.assertEqual(self.request('POST', '/api/opportunities/import', b'{"url":"https://evil.test/x"}',
+                                      {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token})[0], 400)
+
+        job_url = 'https://jobs.lever.co/weloglobal/11111111-1111-1111-1111-111111111111'
+        jd = 'Responsibilities:\nMaintain content quality and an AI knowledge base with sourced review procedures.\nRequired:\nBachelor degree.'
+        official = json.dumps({'id': job_url.rsplit('/', 1)[-1], 'text': 'AI Content Operations',
+                               'descriptionPlain': jd, 'categories': {'location': 'Shanghai, China', 'commitment': 'Internship'},
+                               'applyUrl': job_url + '/apply'})
+        import foreign_opportunities
+        registered = foreign_opportunities.import_url(self.case, {'url': job_url}, lambda requested: (200, requested, official))
+        status, _, body = self.request('GET', '/api/opportunities/studio?job_key=' + registered['job_key'], headers=headers)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)['jd'], jd)
+
+    def test_opportunity_loopback_guard_rejects_private_network_clients(self):
+        handler = object.__new__(server_module.StudioHandler)
+        handler.client_address = ('192.168.1.20', 50000)
+        self.assertFalse(handler.opportunity_loopback_only())
+        handler.client_address = ('127.0.0.1', 50000)
+        self.assertTrue(handler.opportunity_loopback_only())
 
     def test_missing_wrong_or_nonascii_token_rejected(self):
         for token in ('', 'wrong', 'é'):

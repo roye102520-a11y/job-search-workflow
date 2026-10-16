@@ -1,11 +1,13 @@
 """End-to-end local-only checks for the shared JD-to-resume generator."""
 import importlib.util
+import hashlib
 import json
 import os
 import shutil
 import sys
 import tempfile
 import unittest
+import copy
 from pathlib import Path
 
 try:
@@ -117,9 +119,33 @@ class ResumePipelineTests(unittest.TestCase):
         data = json.loads(cache.read_text(encoding='utf-8'))
         data['sources'][0]['sha256'] = '0' * 64
         cache.write_text(json.dumps(data), encoding='utf-8')
-        with self.assertRaisesRegex(ValueError, '事实源已变化'):
+        with self.assertRaisesRegex(ValueError, '事实源已变化.*career-evidence-bank.md'):
             self.generate_request(self.fixtures[0])
         self.assertFalse((self.case / 'generated').exists())
+
+    def test_changed_source_is_named_for_candidate_review(self):
+        source = self.case / 'coaching-state.md'
+        source.write_text(source.read_text(encoding='utf-8') + '\nSynthetic reviewed source update.\n', encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, r'事实源已变化.*coaching-state\.md'):
+            pipeline.load_evidence(self.case)
+
+    def test_rule_version_change_does_not_reuse_old_generation_cache(self):
+        request = copy.deepcopy(self.fixtures[0])
+        first = self.generate_request(request)
+        result_path = self.case / first['output_dir'] / 'result.json'
+        prior = json.loads(result_path.read_text(encoding='utf-8'))
+        effective, _, _ = pipeline.resolve_metadata(request)
+        old_fingerprint = hashlib.sha256(json.dumps({
+            'request': effective, 'evidence': pipeline.sha(self.case / 'resume-evidence.json'),
+            'policy': 2, 'font': str(FONT)
+        }, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        prior['generation_fingerprint'] = old_fingerprint
+        result_path.write_text(json.dumps(prior, ensure_ascii=False), encoding='utf-8')
+
+        second = self.generate_request(request)
+        self.assertFalse(second['reused'])
+        self.assertEqual(second['rules_version'], pipeline.RULES_VERSION)
+        self.assertNotEqual(second['generation_fingerprint'], old_fingerprint)
 
     def test_url_creates_only_a_preparing_manifest_with_explicit_open_checks(self):
         request = dict(self.fixtures[0], url='https://example.test/jobs/123?source=synthetic')

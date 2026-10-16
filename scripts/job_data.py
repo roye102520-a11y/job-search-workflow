@@ -45,7 +45,18 @@ def canonical(url):
     require(u.scheme in ('https', 'http') and u.netloc, 'Invalid job URL')
     query = [(k, v) for k, v in parse_qsl(u.query, keep_blank_values=True)
              if not k.lower().startswith('utm_') and k.lower() not in ('gclid', 'fbclid', 'trid')]
-    return urlunsplit((u.scheme.lower(), u.netloc.lower(), u.path.rstrip('/'), urlencode(sorted(query)), u.fragment))
+    fragment = canonical_fragment(u.fragment)
+    return urlunsplit((u.scheme.lower(), u.netloc.lower(), u.path.rstrip('/'), urlencode(sorted(query)), fragment))
+
+
+def canonical_fragment(fragment):
+    """Keep application routes; ignore ordinary in-page anchors for job identity."""
+    if not isinstance(fragment, str) or not fragment:
+        return ''
+    route = fragment.rsplit('#', 1)[-1].lstrip('!')
+    if re.match(r'^/?(?:jobs?|careers?|positions?|openings?|vacanc(?:y|ies)|requisitions?)(?:/|$)', route, re.I):
+        return route.rstrip('/')
+    return ''
 
 def local(root, value):
     require(isinstance(value, str) and value, 'Empty file path')
