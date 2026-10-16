@@ -1,0 +1,22 @@
+Career Agent Phase 1 verification
+Date: 2026-10-16
+Python: bundled Codex runtime, Python 3.12
+
+Full suite:
+  python -m unittest discover -s tests -v
+  Ran 180 tests; OK (expected failures=1)
+  179 passed; F01 explicit LAN-mode exposure remains an expected failure.
+
+Focused suites:
+  test_foreign_opportunities.py: 25 passed
+  test_jd_requirements.py: 7 passed
+  test_resume_pipeline.py: 12 passed
+  test_resume_server.py: 19 passed (loopback HTTP)
+
+Other checks:
+  Python source compilation: passed
+  git diff --check: passed
+  Real private evidence cache load after reviewed source-digest refresh: passed
+  Browser screenshot comparison: not rerun; frontend and visual assets are unchanged in this phase.
+  Live ATS/API calls and real job verification: not run.
+  External application submission and email: not run.

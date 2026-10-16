@@ -3,6 +3,7 @@
 No live network, candidate data, external submission or mail is used here.
 """
 import copy
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -78,14 +79,26 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         first = jobs.import_url(self.case, {'url': URL}, transport)
         path = self.case / 'applications' / first['job_key'] / 'manifest.json'
         before = path.read_bytes()
-        second = jobs.import_url(self.case, {'url': URL + '?utm_source=test'}, transport)
+        jd_path = self.case / 'applications' / first['job_key'] / 'jd.md'
+        jd_before = jd_path.read_bytes()
+        rows, fields = job_data.rows(self.case)
+        rows[0]['status'] = 'interview'
+        rows[0]['submitted_at'] = '2026-10-01T10:00:00+00:00'
+        job_data.save_rows(self.case, rows, fields)
+        row_before = job_data.rows(self.case)[0][0]
+        events_before = job_data.events(self.case)
+        second = jobs.import_url(self.case, {'url': URL + '?utm_source=test#apply'}, transport)
         self.assertTrue(second['duplicate'])
         self.assertEqual(path.read_bytes(), before)
+        self.assertEqual(jd_path.read_bytes(), jd_before)
+        self.assertEqual(job_data.rows(self.case)[0][0], row_before)
+        self.assertEqual(job_data.events(self.case), events_before)
         self.assertEqual(len(job_data.rows(self.case)[0]), 1)
 
     def test_snapshot_tampering_invalidates_verification(self):
         result = jobs.import_url(self.case, {'url': URL}, transport)
-        (self.case / 'applications' / result['job_key'] / 'official-source.txt').write_text('changed')
+        row = jobs.list_jobs(self.case)['jobs'][0]
+        (self.case / row['verification']['source_path']).write_text('changed')
         self.assertEqual(jobs.list_jobs(self.case)['jobs'][0]['verification']['status'], 'unknown')
 
     def test_expired_observation_needs_refresh(self):
@@ -107,8 +120,7 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.assertNotEqual(job_data.canonical(a), job_data.canonical(b))
         self.assertNotEqual(canonical_job_url(a), canonical_job_url(b))
 
-    @unittest.expectedFailure
-    def test_gap_ordinary_page_anchors_do_not_create_duplicate_jobs(self):
+    def test_regression_ordinary_page_anchors_do_not_create_duplicate_jobs(self):
         self.assertEqual(job_data.canonical('https://example.test/job/123#apply'),
                          job_data.canonical('https://example.test/job/123#description'))
 
@@ -126,8 +138,7 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
     def test_graduation_does_not_infer_current_enrolment(self):
         self.assertNotEqual(assess('Required: Currently enrolled university student.', self.evidence())[0]['status'], 'supported')
 
-    @unittest.expectedFailure
-    def test_gap_realistic_what_you_bring_heading_preserves_graduation_gate(self):
+    def test_regression_realistic_what_you_bring_heading_preserves_graduation_gate(self):
         jd = "What you'll bring\nFull-time student who will be graduated in 2028 (Mandatory Requirement)\nQualifications\nWhat you'll build\nAssist with process documentation."
         evidence = self.evidence(graduation_date='2023-06', graduation_source_ref='evidence.md#education')
         items = assess(jd, evidence)
@@ -148,33 +159,88 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.assertEqual(len(job_data.manifests(self.case)), 1)
         self.assertEqual(job_data.rows(self.case)[0][0]['status'], 'discovered')
 
-    @unittest.expectedFailure
-    def test_gap_compound_permit_must_not_hide_english_requirement(self):
+    def test_regression_compound_permit_must_not_hide_english_requirement(self):
         evidence = self.evidence(capabilities={'work_authorization': {'status': 'confirmed', 'value': True, 'countries': ['CN'], 'source_ref': 'evidence.md#permit'}})
-        self.assertNotEqual(assess('Required: Fluent English and China work authorization.', evidence)[0]['status'], 'supported')
+        items = assess('Required: Fluent English and China work authorization.', evidence)
+        self.assertEqual(len(items), 2)
+        self.assertEqual({item['status'] for item in items}, {'supported', 'unknown'})
 
-    @unittest.expectedFailure
-    def test_gap_false_cn_permission_must_not_reject_uk_permission(self):
+    def test_regression_false_cn_permission_must_not_reject_uk_permission(self):
         evidence = self.evidence(capabilities={'work_authorization': {'status': 'confirmed', 'value': False, 'countries': ['CN'], 'source_ref': 'evidence.md#permit'}})
         self.assertNotEqual(assess('Required: UK work authorization.', evidence)[0]['status'], 'not_met')
 
-    @unittest.expectedFailure
-    def test_gap_discovery_resumes_after_manifest_before_tracker_crash(self):
+    def test_regression_discovery_resumes_after_manifest_before_tracker_crash(self):
         result = jobs.import_url(self.case, {'url': URL}, transport)
         (self.case / 'application-tracker.csv').unlink()
-        jobs.import_url(self.case, {'url': URL}, transport)
+        retry = jobs.import_url(self.case, {'url': URL}, transport)
+        self.assertTrue(retry['tracker_restored'])
         self.assertEqual(len(job_data.rows(self.case)[0]), 1)
 
-    @unittest.expectedFailure
-    def test_gap_reimport_refreshes_previous_failed_verification(self):
+    def test_regression_reimport_refreshes_previous_failed_verification(self):
         result = jobs.import_url(self.case, {'url': URL}, lambda u: (403, u, 'blocked'))
-        jobs.import_url(self.case, {'url': URL}, transport)
+        retry = jobs.import_url(self.case, {'url': URL}, transport)
+        self.assertTrue(retry['refreshed'])
         job = jobs.list_jobs(self.case)['jobs'][0]
         self.assertEqual(job['verification']['status'], 'verified_open')
+        self.assertEqual(len(job['observations']), 2)
+        self.assertTrue((self.case / job['verification']['source_path']).is_file())
 
-    @unittest.expectedFailure
-    def test_gap_closed_flag_is_explicit_not_generic_unknown(self):
+    def test_regression_closed_flag_is_explicit_not_generic_unknown(self):
         info = {'jobPostingInfo': {'title': 'Closed synthetic UX Intern', 'jobDescription': JD, 'jobReqId': 'R1', 'canApply': False, 'posted': False}}
         url = 'https://cerence.wd5.myworkdayjobs.com/Cerence/job/Shanghai/Closed_R1'
         job = jobs.observe(url, lambda u: (200, u, json.dumps(info)))
         self.assertEqual(job['verification']['status'], 'closed')
+
+    def test_smartrecruiters_official_api_detail_is_parsed(self):
+        url = 'https://jobs.smartrecruiters.com/BoschGroup/744000123456789-AI-Quality-Intern'
+        api_url = 'https://api.smartrecruiters.com/v1/companies/BoschGroup/postings/744000123456789'
+        body = {'id': '744000123456789', 'name': 'AI Quality Intern', 'active': True,
+                'refNumber': 'R-100', 'postingUrl': url, 'applyUrl': url + '/apply',
+                'releasedDate': '2026-10-15T10:00:00Z',
+                'location': {'city': 'Shanghai', 'country': 'China'},
+                'typeOfEmployment': {'label': 'Internship'},
+                'jobAd': {'sections': {'qualifications': {'title': 'Qualifications', 'text': '<p>Bachelor degree.</p>'},
+                                       'jobDescription': {'title': 'What you will do', 'text': '<p>Review LLM output quality and maintain annotation guidelines.</p>'}}}}
+        origin = jobs.source(url)
+        self.assertEqual(origin['fetch_url'], api_url)
+        job = jobs.observe(url, lambda requested: (200, requested, json.dumps(body)))
+        self.assertEqual(job['verification']['status'], 'verified_open')
+        self.assertEqual(job['title'], 'AI Quality Intern')
+        self.assertEqual(job['location'], 'Shanghai, China')
+        self.assertEqual(job['posted_date'], '2026-10-15')
+        self.assertIn('Bachelor degree', job['jd'])
+        self.assertTrue(job['apply_url'].endswith('/apply'))
+
+    def test_unverified_source_is_U_and_unpaid_is_D(self):
+        unverified = jobs.observe(URL, lambda u: (200, u, '{}'))
+        self.assertEqual(jobs.matching(self.case, unverified)['grade'], 'U')
+        unpaid = jobs.parse(URL, payload('Required:\nBachelor degree.\nThis is an unpaid internship.'))
+        unpaid['verification'] = {'status': 'verified_open', 'checked_at': '2026-10-16T00:00:00+00:00'}
+        self.assertEqual(jobs.matching(self.case, unpaid)['grade'], 'D')
+
+    def test_target_priority_is_separate_from_nonprobabilistic_evidence_coverage(self):
+        p0 = jobs.parse(URL, payload())
+        p0['verification'] = {'status': 'verified_open', 'checked_at': '2026-10-16T00:00:00+00:00'}
+        match = jobs.matching(self.case, p0)
+        self.assertEqual(match['target_priority'], 'P0')
+        self.assertIn('不是录取概率', match['score_label'])
+        p1 = dict(p0, title='Product Operations Associate', jd='Required:\nBachelor degree.\nAssist product operations and customer feedback tracking.')
+        self.assertEqual(jobs.matching(self.case, p1)['target_priority'], 'P1')
+        p2 = dict(p0, title='UX Research Assistant', jd='Required:\nBachelor degree.\nSupport UX research operations and participant scheduling.')
+        self.assertEqual(jobs.matching(self.case, p2)['target_priority'], 'P2')
+
+    def test_graduation_year_is_read_from_reviewed_source_with_traceable_reference(self):
+        bank = self.case / 'career-evidence-bank.md'
+        bank.write_text(bank.read_text(encoding='utf-8') + '\n- 毕业时间：2023.06\n', encoding='utf-8')
+        cache_path = self.case / 'resume-evidence.json'
+        cache = json.loads(cache_path.read_text(encoding='utf-8'))
+        for source in cache['sources']:
+            if source['path'] == 'career-evidence-bank.md':
+                source['sha256'] = hashlib.sha256(bank.read_bytes()).hexdigest()
+        cache_path.write_text(json.dumps(cache), encoding='utf-8')
+        job = jobs.parse(URL, payload('Required:\nBachelor degree, graduating in 2026 or 2027.'))
+        job['verification'] = {'status': 'verified_open', 'checked_at': '2026-10-16T00:00:00+00:00'}
+        result = jobs.matching(self.case, job)
+        graduation = next(item for item in result['requirements'] if '2026' in item['text'])
+        self.assertEqual(graduation['status'], 'not_met')
+        self.assertIn('career-evidence-bank.md#毕业时间', [proof['source_ref'] for proof in graduation['evidence']])

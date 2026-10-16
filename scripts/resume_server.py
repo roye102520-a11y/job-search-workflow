@@ -4,6 +4,7 @@ import argparse
 import hmac
 import importlib
 import json
+import ipaddress
 import secrets
 import re
 import threading
@@ -114,6 +115,21 @@ class StudioHandler(BaseHTTPRequestHandler):
         if path == '/api/bootstrap':
             self.send_json(200, {'token': self.server.local_token, 'families': self.server.families,
                                  'mode': 'local-review-only'})
+        elif path in ('/api/opportunities', '/api/opportunities/studio'):
+            if not self.opportunity_loopback_only():
+                self.send_json(403, {'error': '岗位发现数据仅允许本机访问'})
+                return
+            if not self.has_token():
+                return
+            try:
+                import foreign_opportunities
+                if path.endswith('/studio'):
+                    key = parse_qs(urlsplit(self.path).query).get('job_key', [''])[0]
+                    self.send_json(200, foreign_opportunities.studio_job(self.server.case, key))
+                else:
+                    self.send_json(200, foreign_opportunities.list_jobs(self.server.case))
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                self.send_json(400, {'error': str(error)})
         elif path in ('/', '/index.html'):
             self.send_page(ASSETS / 'career-workspace.html')
         elif path in ('/demo', '/demo/'):
@@ -224,12 +240,22 @@ class StudioHandler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def opportunity_loopback_only(self):
+        """Never expose real opportunity/JD/evidence data to a LAN client."""
+        try:
+            return ipaddress.ip_address(self.client_address[0]).is_loopback
+        except (ValueError, IndexError, TypeError):
+            return False
+
     def do_POST(self):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
+        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked', '/api/opportunities/import', '/api/opportunities/discover'):
             self.send_json(404, {'error': '接口不存在'})
+            return
+        if endpoint.startswith('/api/opportunities/') and not self.opportunity_loopback_only():
+            self.send_json(403, {'error': '岗位发现数据仅允许本机访问'})
             return
         if not self.has_token():
             return
@@ -253,6 +279,20 @@ class StudioHandler(BaseHTTPRequestHandler):
             if len(raw) != length:
                 raise ValueError('请求内容不完整，请重试')
             request = json.loads(raw)
+            if endpoint.startswith('/api/opportunities/'):
+                if not isinstance(request, dict):
+                    raise ValueError('请求必须为对象')
+                if endpoint.endswith('/import'):
+                    if set(request) != {'url'} or not isinstance(request.get('url'), str):
+                        raise ValueError('仅接受岗位官网 URL')
+                    if len(request['url']) > 2048:
+                        raise ValueError('岗位链接过长')
+                elif set(request) - {'tenant', 'limit'} or not isinstance(request.get('tenant'), str):
+                    raise ValueError('请选择受支持的公开 ATS 租户')
+                if endpoint.endswith('/discover') and ('limit' in request and (type(request['limit']) is not int or not 1 <= request['limit'] <= 10)):
+                    raise ValueError('每轮最多检索 10 个岗位')
+                self.opportunity_write(endpoint, request)
+                return
             if endpoint == '/api/jd/analyze':
                 if not isinstance(request, dict) or set(request) != {'jd'} or not isinstance(request['jd'], str):
                     raise ValueError('请提供 JD 正文')
@@ -311,6 +351,24 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json(503, {'error': '本地生成依赖尚未就绪，请按启动说明检查运行环境'})
         except Exception:
             self.send_json(500, {'error': '本地生成未完成，请检查运行终端或重新启动工作台'})
+        finally:
+            self.server.generation_lock.release()
+
+    def opportunity_write(self, endpoint, request):
+        if not self.server.generation_lock.acquire(blocking=False):
+            self.send_json(409, {'error': '正在处理其他工作台任务，请稍后重试'})
+            return
+        try:
+            import foreign_opportunities
+            if endpoint.endswith('/import'):
+                result = foreign_opportunities.import_url(self.server.case, request)
+            else:
+                result = foreign_opportunities.discover(self.server.case, request['tenant'], request.get('limit', 10))
+            self.send_json(200, result)
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            self.send_json(400, {'error': str(error)})
+        except Exception:
+            self.send_json(502, {'error': '官方岗位读取未完成；未记录为已核验，请稍后重试'})
         finally:
             self.server.generation_lock.release()
 
