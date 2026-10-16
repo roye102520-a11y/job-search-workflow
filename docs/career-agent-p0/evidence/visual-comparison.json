@@ -1,0 +1,262 @@
+[
+  {
+    "name": "applications-1440.png",
+    "baseline_size": [
+      1440,
+      900
+    ],
+    "current_size": [
+      1440,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "applications-360.png",
+    "baseline_size": [
+      360,
+      900
+    ],
+    "current_size": [
+      360,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "assets-1440.png",
+    "baseline_size": [
+      1440,
+      900
+    ],
+    "current_size": [
+      1440,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "assets-360.png",
+    "baseline_size": [
+      360,
+      900
+    ],
+    "current_size": [
+      360,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "interview-1440.png",
+    "baseline_size": [
+      1440,
+      900
+    ],
+    "current_size": [
+      1440,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "interview-360.png",
+    "baseline_size": [
+      360,
+      900
+    ],
+    "current_size": [
+      360,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "jd-desktop.png",
+    "baseline_size": [
+      1440,
+      1000
+    ],
+    "current_size": [
+      1440,
+      1000
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "jd-evidence-mobile.png",
+    "baseline_size": [
+      390,
+      844
+    ],
+    "current_size": [
+      390,
+      844
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "jd-generated-desktop.png",
+    "baseline_size": [
+      1440,
+      1000
+    ],
+    "current_size": [
+      1440,
+      1000
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "jd-mobile.png",
+    "baseline_size": [
+      390,
+      844
+    ],
+    "current_size": [
+      390,
+      844
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "local-desktop.png",
+    "baseline_size": [
+      1440,
+      1000
+    ],
+    "current_size": [
+      1440,
+      1000
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "local-mobile.png",
+    "baseline_size": [
+      390,
+      844
+    ],
+    "current_size": [
+      390,
+      844
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "overview-1440.png",
+    "baseline_size": [
+      1440,
+      900
+    ],
+    "current_size": [
+      1440,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "overview-360.png",
+    "baseline_size": [
+      360,
+      900
+    ],
+    "current_size": [
+      360,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "public-desktop.png",
+    "baseline_size": [
+      1440,
+      1000
+    ],
+    "current_size": [
+      1440,
+      1000
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "public-mobile.png",
+    "baseline_size": [
+      390,
+      844
+    ],
+    "current_size": [
+      390,
+      844
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "resume-1440.png",
+    "baseline_size": [
+      1440,
+      900
+    ],
+    "current_size": [
+      1440,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "resume-360.png",
+    "baseline_size": [
+      360,
+      900
+    ],
+    "current_size": [
+      360,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "website-1440.png",
+    "baseline_size": [
+      1440,
+      900
+    ],
+    "current_size": [
+      1440,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  },
+  {
+    "name": "website-360.png",
+    "baseline_size": [
+      360,
+      900
+    ],
+    "current_size": [
+      360,
+      900
+    ],
+    "pixel_identical": true,
+    "difference_bbox": null
+  }
+]

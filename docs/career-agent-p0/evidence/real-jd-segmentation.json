@@ -1,0 +1,26 @@
+{
+  "source_url": "https://jobs.sap.com/en/jobs/744000154959197/student-training-rotation-program-consultant-2028-graduates/",
+  "source_requirement_present": true,
+  "eligibility_items_emitted": [
+    {
+      "text": "About STAR Program (Student Training and Rotation Program):",
+      "level": "required",
+      "status": "unknown",
+      "reason": "未找到足够的直接证据；请人工复核，缺失不代表不具备。",
+      "evidence_refs": [],
+      "evidence": [],
+      "human_review_required": true
+    },
+    {
+      "text": "As part of SAP Next Gen, STAR Program offers all students within SAP to work towards their university degree while gaining valuable business experiences at the same time. Our students are assigned to rotate through all business areas, based on their subjects and business demands.",
+      "level": "required",
+      "status": "unknown",
+      "reason": "未找到足够的直接证据；请人工复核，缺失不代表不具备。",
+      "evidence_refs": [],
+      "evidence": [],
+      "human_review_required": true
+    }
+  ],
+  "requirements_count": 32,
+  "synthetic_candidate": true
+}

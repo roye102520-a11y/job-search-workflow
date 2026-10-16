@@ -1,0 +1,26 @@
+{
+  "merge_ready": false,
+  "production_ready": false,
+  "unit": {
+    "total": 172,
+    "passed": 164,
+    "expected_failures": 8,
+    "unexpected_failures": 0
+  },
+  "browser": {
+    "passed": 16,
+    "blocked": 1
+  },
+  "visual": {
+    "pairs": 20,
+    "pixel_identical": 20
+  },
+  "ui_integrated": false,
+  "real_applications_changed": false,
+  "known_rule_cache_bug": true,
+  "known_failures_are_not_passes": true,
+  "public_static_preview": {
+    "passed": 6,
+    "backend_verified": false
+  }
+}

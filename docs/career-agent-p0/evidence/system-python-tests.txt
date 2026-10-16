@@ -1,0 +1,314 @@
+test_blocked_company_import_is_exact_and_deduplicated (test_boss_assist.BossAssistantTests) ... ok
+test_config_rejects_typos_bad_ranges_and_unsafe_placeholders (test_boss_assist.BossAssistantTests) ... ok
+test_conflicting_rows_with_same_stable_id_are_not_silently_merged (test_boss_assist.BossAssistantTests) ... ok
+test_greeting_is_only_a_confirmed_local_draft (test_boss_assist.BossAssistantTests) ... ok
+test_invalid_row_is_reported_and_valid_rows_are_not_lost (test_boss_assist.BossAssistantTests) ... ok
+test_json_csv_and_cli_roundtrip (test_boss_assist.BossAssistantTests) ... ok
+test_open_count_zero_means_unlimited_and_unknown_needs_review (test_boss_assist.BossAssistantTests) ... ok
+test_salary_never_infers_missing_or_annual_pay (test_boss_assist.BossAssistantTests) ... ok
+test_stable_id_dedup_ignores_session_parameters_but_unknown_urls_survive (test_boss_assist.BossAssistantTests) ... ok
+test_weekend_claim_is_read_from_text_but_stays_unverified (test_boss_assist.BossAssistantTests) ... ok
+test_bad_payload_and_blocked_import (test_boss_http.BossHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/settings HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/blocked HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/blocked HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/screen HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/screen HTTP/1.1" 403 -
+ok
+test_screen_persists_reclassifies_and_never_updates_tracker (test_boss_http.BossHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /api/boss HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /api/boss HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /api/boss HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/screen HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/boss/settings HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /api/boss HTTP/1.1" 200 -
+ok
+test_bad_import_does_not_replace_previous_jobs (test_boss_workspace.BossWorkspaceTests) ... ok
+test_blocked_companies_are_merged_without_external_action (test_boss_workspace.BossWorkspaceTests) ... ok
+test_seed_preferences_and_reclassify_saved_rows (test_boss_workspace.BossWorkspaceTests) ... ok
+test_company_size_normalization_and_partial_overlap (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_composite_degree_does_not_hide_sql_requirement (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_conflicting_event_id_never_counts_as_confirmed_submission (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_future_employment_does_not_meet_ten_years (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_incomplete_submission_event_never_counts_as_real (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_ongoing_education_is_partial (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_pending_education_is_not_used_as_supported (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_title_only_without_keyword_does_not_exclude_unknown_jd (test_career_studio_v2.V2AdditionalEvidenceTests) ... ok
+test_adjacent_tags_do_not_prove_rag (test_career_studio_v2.V2Tests) ... ok
+test_degree_copy_is_candidate_specific (test_career_studio_v2.V2Tests) ... ok
+test_distinct_jds_and_candidates_do_not_share_selection (test_career_studio_v2.V2Tests) ... ok
+test_empty_workspace_has_first_action_and_no_fake_stats (test_career_studio_v2.V2Tests) ... ok
+test_exact_repeat_reuses_files_and_new_priority_creates_version (test_career_studio_v2.V2Tests) ... ERROR
+test_five_fact_update_and_conflict_samples (test_career_studio_v2.V2Tests) ... ok
+test_manual_direction_does_not_override_unsupported (test_career_studio_v2.V2Tests) ... ok
+test_no_data_never_means_not_met (test_career_studio_v2.V2Tests) ... ok
+test_priority_rescues_important_omitted_project (test_career_studio_v2.V2Tests) ... ok
+test_salary_units_and_payment_counts (test_career_studio_v2.V2Tests) ... ok
+test_same_id_with_changed_conditions_is_conflict (test_career_studio_v2.V2Tests) ... ok
+test_selection_reports_every_candidate_and_does_not_mutate (test_career_studio_v2.V2Tests) ... ok
+test_stale_source_removes_recommendation_evidence (test_career_studio_v2.V2Tests) ... ok
+test_ten_hard_conditions (test_career_studio_v2.V2Tests) ... ok
+test_ten_plus_screening_anomalies (test_career_studio_v2.V2Tests) ... ok
+test_ten_single_and_ten_mixed_routes (test_career_studio_v2.V2Tests) ... ok
+test_updated_cache_invalidates_material_reuse_and_portfolio (test_career_studio_v2.V2Tests) ... ERROR
+test_http_workspace_resources_save_and_preview (test_career_workspace.WorkspaceTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /api/workspace HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /api/workspace HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /studio HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /assets/career-workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /resources/resume-evidence.json HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /resources/career-evidence-bank.md HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/workspace/review HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/workspace/material HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "POST /api/workspace/portfolio HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /portfolio-preview/portfolio-20261016T121304-012c0c0e HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:04] "GET /files/generated/portfolio-20261016T121304-012c0c0e/portfolio.md HTTP/1.1" 200 -
+ok
+test_intake_deduplicates_without_modifying_facts (test_career_workspace.WorkspaceTests) ... ok
+test_invalid_reviews_rejected (test_career_workspace.WorkspaceTests) ... ok
+test_portfolio_uses_selected_facts_and_keeps_history (test_career_workspace.WorkspaceTests) ... ok
+test_project_links_tolerate_spaces_in_names (test_career_workspace.WorkspaceTests) ... ok
+test_recommendation_reason_does_not_copy_another_candidates_metrics (test_career_workspace.WorkspaceTests) ... ok
+test_resource_allowlist_and_symlinks (test_career_workspace.WorkspaceTests) ... ok
+test_resume_variant_limits_website_to_selected_facts (test_career_workspace.WorkspaceTests) ... ok
+test_review_is_idempotent_and_does_not_change_facts (test_career_workspace.WorkspaceTests) ... ok
+test_snapshot_has_no_invented_outcomes (test_career_workspace.WorkspaceTests) ... ok
+test_stale_evidence_blocks_portfolio_and_warns_dashboard (test_career_workspace.WorkspaceTests) ... ok
+test_cn_permission_does_not_prove_uk_permission (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_current_pipeline_can_generate_from_imported_source_without_new_manifest (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... skipped 'PDF dependencies unavailable'
+test_discovery_cannot_start_submission (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_duplicate_import_preserves_stage_and_materials (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_enrolled_only_job_is_not_supported_by_completed_degree (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_expired_observation_needs_refresh (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_gap_closed_flag_is_explicit_not_generic_unknown (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_gap_compound_permit_must_not_hide_english_requirement (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_gap_discovery_resumes_after_manifest_before_tracker_crash (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_gap_false_cn_permission_must_not_reject_uk_permission (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_gap_ordinary_page_anchors_do_not_create_duplicate_jobs (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_gap_realistic_what_you_bring_heading_preserves_graduation_gate (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_gap_reimport_refreshes_previous_failed_verification (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... expected failure
+test_graduation_does_not_infer_current_enrolment (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_graduation_window_rejects_wrong_year_and_preserves_unknown (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_hash_routed_jobs_are_distinct_across_modules (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_http_200_landing_or_redirect_does_not_prove_job_open (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_imported_jd_enters_existing_tracker_without_submit (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_invalid_sources_and_client_verification_flags_are_rejected (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_network_failure_and_closed_page_remain_non_actionable (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_snapshot_tampering_invalidates_verification (test_foreign_opportunities.ForeignDiscoveryAuditTests) ... ok
+test_conflicting_stage_alias_fails_without_overwriting_csv (test_full_workflow.FullWorkflowCLI) ... ok
+test_duplicate_by_alias_or_same_requisition (test_full_workflow.FullWorkflowCLI) ... ok
+test_duplicate_tracker_keys_block_event_before_append (test_full_workflow.FullWorkflowCLI) ... ok
+test_entire_cli_success_flow_and_report (test_full_workflow.FullWorkflowCLI) ... ok
+test_evidence_missing_or_outside_case_fails_without_event (test_full_workflow.FullWorkflowCLI) ... ok
+test_extra_columns_alias_and_sync_survive_commands (test_full_workflow.FullWorkflowCLI) ... ok
+test_feedback_cannot_reference_another_jobs_attempt (test_full_workflow.FullWorkflowCLI) ... ok
+test_feedback_with_unknown_attempt_is_rejected (test_full_workflow.FullWorkflowCLI) ... ok
+test_final_preflight_failure_does_not_create_tracker_or_attempt (test_full_workflow.FullWorkflowCLI) ... ok
+test_idempotent_record_and_conflicting_id (test_full_workflow.FullWorkflowCLI) ... ok
+test_invalid_intervals_and_future_observation_are_rejected (test_full_workflow.FullWorkflowCLI) ... ok
+test_lock_contention_fails_cleanly (test_full_workflow.FullWorkflowCLI) ... ok
+test_malformed_json_shapes_fail_cleanly (test_full_workflow.FullWorkflowCLI) ... ok
+test_reconcile_recovers_stale_tracker_idempotently (test_full_workflow.FullWorkflowCLI) ... ok
+test_report_does_not_count_drafts_or_outreach (test_full_workflow.FullWorkflowCLI) ... ok
+test_submission_attribution_survives_draft_edit_during_unknown (test_full_workflow.FullWorkflowCLI) ... ok
+test_symlink_cannot_escape_case_for_attachment (test_full_workflow.FullWorkflowCLI) ... ok
+test_tampered_frozen_attachment_blocks_submission (test_full_workflow.FullWorkflowCLI) ... ok
+test_unknown_failed_retry_then_success (test_full_workflow.FullWorkflowCLI) ... ok
+test_generic_jd_uses_cautious_fallback (test_jd_gap_analysis.GapAnalysisTests) ... ok
+test_missing_evidence_is_not_invented (test_jd_gap_analysis.GapAnalysisTests) ... ok
+test_requires_numbered_points (test_jd_gap_analysis.GapAnalysisTests) ... ok
+test_training_jd_has_all_points_and_seven_days (test_jd_gap_analysis.GapAnalysisTests) ... ok
+test_content_organization_and_document_management_use_direct_evidence (test_jd_requirements.RequirementTests) ... ok
+test_english_comma_list_stays_one_experience_requirement (test_jd_requirements.RequirementTests) ... ok
+test_known_degree_and_user_experience_supported_without_double_count (test_jd_requirements.RequirementTests) ... ok
+test_masters_and_ml_training_are_documented_not_met (test_jd_requirements.RequirementTests) ... ok
+test_negative_requirement_is_excluded (test_jd_requirements.RequirementTests) ... ok
+test_preferred_sql_is_not_promoted_to_required (test_jd_requirements.RequirementTests) ... ok
+test_unknown_work_permission_and_travel_stay_unknown (test_jd_requirements.RequirementTests) ... ok
+test_consultation_not_submission (test_job_data.JobDataTests) ... ok
+test_crash_after_start_blocks_retry_and_snapshot_survives (test_job_data.JobDataTests) ... ok
+test_empty_report_does_not_count_prepared (test_job_data.JobDataTests) ... ok
+test_evidence_required_and_draft_rejected (test_job_data.JobDataTests) ... ok
+test_frozen_attachment_tamper_blocks_success_record (test_job_data.JobDataTests) ... ok
+test_hash_tampering (test_job_data.JobDataTests) ... ok
+test_key_collision_with_different_requisition (test_job_data.JobDataTests) ... ok
+test_legacy_results_not_silently_ignored (test_job_data.JobDataTests) ... ok
+test_missing_and_outside_paths (test_job_data.JobDataTests) ... ok
+test_out_of_order_observation_rejected (test_job_data.JobDataTests) ... ok
+test_preserve_extra_columns_and_sync (test_job_data.JobDataTests) ... ok
+test_report_uses_submission_version_and_past_interview (test_job_data.JobDataTests) ... ok
+test_same_title_different_job_allowed (test_job_data.JobDataTests) ... ok
+test_tracking_params_and_job_identity (test_job_data.JobDataTests) ... ok
+test_unknown_submission_date_is_not_now (test_job_data.JobDataTests) ... ok
+test_unknown_then_success_and_idempotent_record (test_job_data.JobDataTests) ... ok
+test_unresolved_blocks_start (test_job_data.JobDataTests) ... ok
+test_cli_closed_job_cannot_reopen (test_job_data.RecoveryRegressionTests) ... ok
+test_late_confirmation_preserves_stage_and_interview_count (test_job_data.RecoveryRegressionTests) ... ok
+test_tracker_references_submitted_snapshot (test_job_data.RecoveryRegressionTests) ... ok
+test_different_job_families_select_meaningfully_different_evidence (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_existing_application_url_does_not_create_a_second_manifest (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_generated_resume_excludes_known_false_claims_and_does_not_repeat_highlight (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_jd_only_request_generates_with_explicit_or_placeholder_metadata (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_neutral_chronological_role_keeps_two_sourced_details (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_six_realistic_synthetic_jds_route_and_generate_expected_packages (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_stale_source_digest_blocks_generation_before_writing_artifacts (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_tracking_parameters_and_query_order_do_not_bypass_url_deduplication (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_unsupported_ml_has_blocking_requirements_and_never_creates_resume (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_url_creates_only_a_preparing_manifest_with_explicit_open_checks (test_resume_pipeline.ResumePipelineTests) ... skipped 'PDF test dependencies are not installed; use requirements.txt or the bundled runtime'
+test_ambiguous_family_can_return_only_match_without_pdf (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_bad_json_shapes_and_unexpected_fields_rejected (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+ok
+test_binds_only_ipv4_loopback (test_resume_server.StudioHTTPTests) ... ok
+test_bootstrap_has_random_token_and_families_no_cors (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 200 -
+ok
+test_business_error_is_friendly_and_releases_lock (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_cors_preflight_is_not_enabled (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "OPTIONS /api/generate HTTP/1.1" 405 -
+ok
+test_generate_returns_local_artifacts_and_passes_request (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/generated/synthetic-result/resume.pdf HTTP/1.1" 200 -
+ok
+test_generator_cannot_publish_private_case_path (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+ok
+test_host_and_origin_restricted (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_html_has_nonce_csp_and_no_candidate_facts (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET / HTTP/1.1" 200 -
+ok
+test_invalid_json_content_type_and_body_limit (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 415 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 413 -
+ok
+test_jd_analysis_and_current_target_are_token_protected (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/jd/current HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/jd/current HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/jd/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/jd/analyze HTTP/1.1" 403 -
+ok
+test_markdown_served_as_plain_text_with_nosniff (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/generated/synthetic-result/match.md HTTP/1.1" 200 -
+ok
+test_missing_wrong_or_nonascii_token_rejected (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 403 -
+ok
+test_parallel_generation_is_serialized (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 409 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_private_files_traversal_and_symlinks_not_served (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/../profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/generated/../profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/generated/%2e%2e/profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/generated/synthetic-result/linked.md HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files/generated/synthetic-result/active.html HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /files//etc/passwd HTTP/1.1" 404 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /profile.json HTTP/1.1" 404 -
+ok
+test_strategy_uses_auth_and_saves_report_without_submission (test_resume_server.StudioHTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /strategy HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/strategy/followups HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/strategy/rank HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/strategy/rank HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/strategy/followups HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/strategy/rank HTTP/1.1" 409 -
+ok
+test_conflicting_legacy_stage_aliases_rejected (test_search_strategy.StrategyTests) ... ok
+test_dates_urgent_expired_invalid_and_stale (test_search_strategy.StrategyTests) ... ok
+test_dedup_preserves_job_ids_and_does_not_merge_titles (test_search_strategy.StrategyTests) ... ok
+test_delayed_confirmation_preserves_sent_followups (test_search_strategy.StrategyTests) ... ok
+test_drafts_do_not_consume_sent_quota (test_search_strategy.StrategyTests) ... ok
+test_duplicate_event_id_does_not_consume_extra_quota (test_search_strategy.StrategyTests) ... ok
+test_followup_draft_readonly_and_exact_threshold (test_search_strategy.StrategyTests) ... ok
+test_gaps_count_jobs_once_and_separate_eligibility (test_search_strategy.StrategyTests) ... ok
+test_hard_fail_and_unknown_never_outrank_review (test_search_strategy.StrategyTests) ... ok
+test_hash_route_job_ids_are_not_merged (test_search_strategy.StrategyTests) ... ok
+test_incomplete_or_missing_submission_evidence_is_held (test_search_strategy.StrategyTests) ... ok
+test_invalid_or_future_events_not_used_for_drafts (test_search_strategy.StrategyTests) ... ok
+test_no_submission_event_means_no_draft (test_search_strategy.StrategyTests) ... ok
+test_report_preserves_inputs_and_tracker (test_search_strategy.StrategyTests) ... ok
+test_sent_limit_recent_reply_and_unknown_submission (test_search_strategy.StrategyTests) ... ok
+test_stale_evidence_and_bad_shapes_rejected (test_search_strategy.StrategyTests) ... ok
+test_tracked_excluded_and_missing_not_scored (test_search_strategy.StrategyTests) ... ok
+test_lan_mode_must_not_give_new_unauthenticated_client_candidate_data (test_security_audit.NetworkExposureAuditTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/bootstrap HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/workspace HTTP/1.1" 200 -
+expected failure
+test_original_fact_source_is_authenticated_and_allowlisted (test_v2_http.V2HTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/evidence/source?ref=career-evidence-bank.md HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/evidence/source?ref=career-evidence-bank.md%23beacon HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:07] "GET /api/evidence/source?ref=.env HTTP/1.1" 400 -
+ok
+test_partial_blocks_generation_readiness (test_v2_http.V2HTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:07] "POST /api/generate HTTP/1.1" 400 -
+FAIL
+test_preview_is_authenticated_and_readonly (test_v2_http.V2HTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:08] "POST /api/selection HTTP/1.1" 403 -
+127.0.0.1 - - [16/Oct/2026 20:13:08] "POST /api/selection HTTP/1.1" 200 -
+ok
+test_priority_and_budget_validation_recovers (test_v2_http.V2HTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:08] "POST /api/selection HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:08] "POST /api/selection HTTP/1.1" 400 -
+127.0.0.1 - - [16/Oct/2026 20:13:08] "POST /api/selection HTTP/1.1" 200 -
+ok
+test_public_demo_does_not_embed_private_data (test_v2_http.V2HTTPTests) ... 127.0.0.1 - - [16/Oct/2026 20:13:09] "GET /demo HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:09] "GET /demo/preview.js HTTP/1.1" 200 -
+127.0.0.1 - - [16/Oct/2026 20:13:09] "GET /demo/../../resume-evidence.json HTTP/1.1" 404 -
+ok
+
+======================================================================
+ERROR: test_exact_repeat_reuses_files_and_new_priority_creates_version (test_career_studio_v2.V2Tests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<WORKSPACE>/scripts/resume_pipeline.py", line 213, in render_pdf
+    from reportlab.pdfbase import pdfmetrics
+ModuleNotFoundError: No module named 'reportlab'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<WORKSPACE>/tests/test_career_studio_v2.py", line 139, in test_exact_repeat_reuses_files_and_new_priority_creates_version
+    first = pipeline.generate(self.case, self.request())
+  File "<WORKSPACE>/scripts/resume_pipeline.py", line 350, in generate
+    pdf_checks = render_pdf(stage / pdf_name, lines, font)
+  File "<WORKSPACE>/scripts/resume_pipeline.py", line 221, in render_pdf
+    raise ValueError('需要 Python 依赖 reportlab 与 pypdf；请使用项目 requirements.txt') from exc
+ValueError: 需要 Python 依赖 reportlab 与 pypdf；请使用项目 requirements.txt
+
+======================================================================
+ERROR: test_updated_cache_invalidates_material_reuse_and_portfolio (test_career_studio_v2.V2Tests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<WORKSPACE>/scripts/resume_pipeline.py", line 213, in render_pdf
+    from reportlab.pdfbase import pdfmetrics
+ModuleNotFoundError: No module named 'reportlab'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<WORKSPACE>/tests/test_career_studio_v2.py", line 149, in test_updated_cache_invalidates_material_reuse_and_portfolio
+    first = pipeline.generate(self.case, self.request())
+  File "<WORKSPACE>/scripts/resume_pipeline.py", line 350, in generate
+    pdf_checks = render_pdf(stage / pdf_name, lines, font)
+  File "<WORKSPACE>/scripts/resume_pipeline.py", line 221, in render_pdf
+    raise ValueError('需要 Python 依赖 reportlab 与 pypdf；请使用项目 requirements.txt') from exc
+ValueError: 需要 Python 依赖 reportlab 与 pypdf；请使用项目 requirements.txt
+
+======================================================================
+FAIL: test_partial_blocks_generation_readiness (test_v2_http.V2HTTPTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<WORKSPACE>/tests/test_v2_http.py", line 55, in test_partial_blocks_generation_readiness
+    status,body=self.request('/api/generate',payload);self.assertEqual(status,200,body)
+AssertionError: 400 != 200 : b'{"error": "\xe9\x9c\x80\xe8\xa6\x81 Python \xe4\xbe\x9d\xe8\xb5\x96 reportlab \xe4\xb8\x8e pypdf\xef\xbc\x9b\xe8\xaf\xb7\xe4\xbd\xbf\xe7\x94\xa8\xe9\xa1\xb9\xe7\x9b\xae requirements.txt"}'
+
+----------------------------------------------------------------------
+Ran 172 tests in 5.702s
+
+FAILED (failures=1, errors=2, skipped=11, expected failures=8)
