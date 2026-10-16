@@ -43,7 +43,7 @@ python3 scripts/resume_server.py --case /absolute/path/to/job-search-cases/examp
 
 ### 可选 DeepSeek 辅助
 
-DeepSeek 调用只在服务端进行，浏览器不会回读 API Key，也不会写入生成文件。在本地工作台「投递进度 → 可选：DeepSeek 推荐摘要」可填写并保存到当前电脑的用户配置目录；Unix/macOS 限制目录为仅当前用户访问、密钥文件权限为 `0600`。密钥不保存在案例目录、项目仓库或 Vercel 预览中。也可继续在启动进程环境中配置：
+DeepSeek 调用只在服务端进行。填写的 API Key 通过本机工作台送到本地服务，并保存为本机用户配置文件（未加密）；Unix/macOS 将配置目录限制为仅当前用户访问、密钥文件权限设为 `0600`。已保存密钥不会被页面回读，也不写入生成文件、案例目录、项目仓库或 Vercel 预览。在本地工作台「投递进度 → 可选：DeepSeek 推荐摘要」可管理该配置。也可继续在启动进程环境中配置：
 
 ```bash
 export DEEPSEEK_API_KEY='你的密钥'
