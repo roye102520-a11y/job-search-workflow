@@ -50,6 +50,21 @@ class WorkspaceTests(unittest.TestCase):
         self.assertNotIn('500+', reasons)
         self.assertNotIn('离线评测', reasons)
 
+    def test_saving_checkbox_preferences_preserves_salary_and_private_strategy(self):
+        path = self.case / 'search-preferences.json'
+        data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {
+            'categories': ['产品运营'], 'locations': ['上海'], 'requests': ['AI 产品'],
+            'preferred_companies': ['示例企业'], 'excluded_companies': ['屏蔽企业']}
+        data['salary_floor'] = {'amount': 8200, 'currency': 'CNY', 'period': 'month'}
+        data['job_search_strategy'] = {'target_directions': [{'priority': 'P0', 'label': 'Private target', 'keywords': ['private']}],
+                                       'internship_policy': {'paid_required_for_priority': True}}
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+        workspace.save_preferences(self.case, {'categories': ['产品运营'], 'locations': ['上海'], 'requests': ['AI 产品']})
+        saved = json.loads(path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['salary_floor'], data['salary_floor'])
+        self.assertEqual(saved['job_search_strategy'], data['job_search_strategy'])
+        self.assertEqual(saved['excluded_companies'], data['excluded_companies'])
+
     def test_review_is_idempotent_and_does_not_change_facts(self):
         original = (self.case / 'career-evidence-bank.md').read_bytes()
         request = self.review()

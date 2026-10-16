@@ -211,12 +211,13 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.assertIn('Bachelor degree', job['jd'])
         self.assertTrue(job['apply_url'].endswith('/apply'))
 
-    def test_unverified_source_is_U_and_unpaid_is_D(self):
+    def test_unverified_source_is_U_and_unpaid_is_deprioritized(self):
         unverified = jobs.observe(URL, lambda u: (200, u, '{}'))
         self.assertEqual(jobs.matching(self.case, unverified)['grade'], 'U')
         unpaid = jobs.parse(URL, payload('Required:\nBachelor degree.\nThis is an unpaid internship.'))
         unpaid['verification'] = {'status': 'verified_open', 'checked_at': '2026-10-16T00:00:00+00:00'}
-        self.assertEqual(jobs.matching(self.case, unpaid)['grade'], 'D')
+        self.assertEqual(jobs.matching(self.case, unpaid)['grade'], 'C')
+        self.assertEqual(jobs.matching(self.case, unpaid)['posted_compensation']['paid_status'], 'unpaid')
 
     def test_target_priority_is_separate_from_nonprobabilistic_evidence_coverage(self):
         p0 = jobs.parse(URL, payload())
@@ -228,6 +229,67 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.assertEqual(jobs.matching(self.case, p1)['target_priority'], 'P1')
         p2 = dict(p0, title='UX Research Assistant', jd='Required:\nBachelor degree.\nSupport UX research operations and participant scheduling.')
         self.assertEqual(jobs.matching(self.case, p2)['target_priority'], 'P2')
+
+    def test_employment_type_salary_and_work_mode_are_explicit_or_unknown(self):
+        internship = {'title': 'AI Quality Intern', 'employment_type': 'Internship',
+                      'jd': 'Paid internship. Compensation: CNY 8,000 per month. Work from home in China.',
+                      'location': 'Remote - China'}
+        self.assertEqual(jobs.employment_category(internship), 'internship')
+        self.assertEqual(jobs.compensation_details(internship)['paid_status'], 'paid')
+        self.assertIn('CNY 8,000', jobs.compensation_details(internship)['published'])
+        structured = jobs.compensation_details({'compensation': {'currency': 'CNY', 'value': {'minValue': 8000, 'maxValue': 10000, 'unitText': 'MONTH'}}})
+        self.assertEqual(structured['paid_status'], 'paid')
+        self.assertIn('CNY', structured['published'])
+        self.assertEqual(jobs.work_arrangement(internship)['status'], 'remote')
+        self.assertEqual(jobs.employment_category({'title': 'Content Quality', 'employment_type': 'Freelance project'}), 'project_freelance')
+        self.assertEqual(jobs.employment_category({'title': 'Graduate Program Associate', 'employment_type': 'Full-time'}), 'graduate_program')
+        self.assertEqual(jobs.employment_category({'title': 'Operations Associate', 'employment_type': 'Full-time'}), 'full_time')
+        self.assertEqual(jobs.compensation_details({'jd': 'Responsibilities: organize knowledge articles.'})['paid_status'], 'unknown')
+        self.assertEqual(jobs.work_arrangement({'location': 'Shanghai', 'jd': 'Responsibilities: organize knowledge articles.'})['status'], 'unknown')
+
+    def test_internship_graduate_eligibility_requires_current_official_acceptance(self):
+        official = {'title': 'AI Content Intern', 'employment_type': 'Internship',
+                    'jd': 'Paid internship. Graduates are welcome. Mentorship and training provided.',
+                    'verification': {'status': 'verified_open'}}
+        eligible = jobs.internship_qualification(official, [], 'verified_open')
+        self.assertEqual(eligible['status'], 'eligible')
+        self.assertEqual(jobs.internship_growth(official)['status'], 'supported')
+
+        recent_only = dict(official, jd='Paid internship. Recent graduates are welcome.')
+        self.assertEqual(jobs.internship_qualification(recent_only, [], 'verified_open')['status'], 'needs_confirmation')
+        self.assertEqual(jobs.internship_qualification(official, [], 'stale')['status'], 'needs_confirmation')
+        unspecified = dict(official, jd='Paid internship. Organize content quality reviews.')
+        self.assertEqual(jobs.internship_qualification(unspecified, [], 'verified_open')['status'], 'needs_confirmation')
+
+        student_only = [dict(level='required', status='not_met', text='Currently enrolled university student required')]
+        blocked = jobs.internship_qualification(official, student_only, 'verified_open')
+        self.assertEqual(blocked['status'], 'ineligible')
+        self.assertIn('Currently enrolled', blocked['reason'])
+        explicitly_student_only = dict(official, jd='Paid internship. Current university students only.')
+        self.assertEqual(jobs.internship_qualification(explicitly_student_only, [], 'verified_open')['status'], 'ineligible')
+        self.assertEqual(jobs.internship_qualification(explicitly_student_only, student_only, 'stale')['status'], 'needs_confirmation')
+
+        year_requirements = assess("Required: Bachelor's degree, graduating in 2026 or 2027.",
+                                   self.evidence(graduation_date='2023-06', graduation_source_ref='evidence.md#education'))
+        year_blocked = jobs.internship_qualification(official, year_requirements, 'verified_open')
+        self.assertEqual(year_blocked['status'], 'ineligible')
+
+    def test_unconfirmed_internship_eligibility_cannot_receive_a_grade(self):
+        job = jobs.parse(URL, payload('Paid internship. Assist with AI content quality and data review.'))
+        job.update(title='AI Content Intern', employment_type='Internship',
+                   verification={'status': 'verified_open', 'verified_at': '2026-10-16T00:00:00+00:00'})
+        match = jobs.matching(self.case, job)
+        self.assertEqual(match['internship_qualification']['status'], 'needs_confirmation')
+        self.assertNotEqual(match['grade'], 'A')
+        self.assertIn('已毕业', ' '.join(match['warnings']))
+
+    def test_private_target_directions_override_generic_legacy_ranking(self):
+        job = {'title': 'Operations Associate', 'jd': 'Required: Bachelor degree. Support onboarding.',
+               'verification': {'status': 'verified_open'}}
+        prefs = {'job_search_strategy': {'target_directions': [
+            {'priority': 'P0', 'label': 'Private target', 'keywords': ['Operations Associate']}]}}
+        self.assertEqual(jobs.target_alignment(job, prefs), ('P0', 'Private target', 'Operations Associate'))
+        self.assertEqual(jobs.target_alignment(job, {}), (None, None, None))
 
     def test_graduation_year_is_read_from_reviewed_source_with_traceable_reference(self):
         bank = self.case / 'career-evidence-bank.md'
