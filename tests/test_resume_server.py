@@ -160,6 +160,36 @@ class StudioHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertEqual(json.loads(body)['jd'], jd)
 
+    def test_career_positioning_is_local_token_protected_and_does_not_expose_contacts(self):
+        self.assertEqual(self.request('GET', '/api/career/positioning')[0], 403)
+        headers = {'X-Local-Token': self.server.local_token}
+        status, _, body = self.request('GET', '/api/career/positioning', headers=headers)
+        self.assertEqual(status, 200, body)
+        result = json.loads(body)
+        self.assertEqual(len(result['roles']), 5)
+        self.assertNotIn('candidate@example.test', body.decode())
+        self.assertEqual(self.request('GET', '/api/career/positioning', headers={'Host': 'evil.example'})[0], 403)
+
+    def test_daily_discovery_api_is_capped_authenticated_and_discovery_only(self):
+        from unittest.mock import patch
+        fake = {'mode': 'discovery-only', 'results_count': 1, 'sources': [{'tenant': 'synthetic'}],
+                'scheduler': 'not_configured', 'external_actions': {'emails_sent': 0, 'applications_submitted': 0}}
+        headers = {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token}
+        body = json.dumps({'limit': 10}).encode()
+        self.assertEqual(self.request('POST', '/api/opportunities/discover-daily', body,
+                                      {'Content-Type': 'application/json'})[0], 403)
+        with patch('daily_job_search.discover_daily', return_value=fake) as discover:
+            status, _, response = self.request('POST', '/api/opportunities/discover-daily', body, headers)
+        self.assertEqual(status, 200, response)
+        discover.assert_called_once_with(self.case.resolve(), 10)
+        result = json.loads(response)
+        self.assertEqual(result['external_actions']['emails_sent'], 0)
+        self.assertEqual(result['external_actions']['applications_submitted'], 0)
+        self.assertEqual(result['scheduler'], 'not_configured')
+        bad = json.dumps({'limit': 50}).encode()
+        self.assertEqual(self.request('POST', '/api/opportunities/discover-daily', bad, headers)[0], 400)
+        self.assertEqual(self.request('POST', '/api/opportunities/send', body, headers)[0], 404)
+
     def test_opportunity_loopback_guard_rejects_private_network_clients(self):
         handler = object.__new__(server_module.StudioHandler)
         handler.client_address = ('192.168.1.20', 50000)

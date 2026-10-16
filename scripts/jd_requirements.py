@@ -49,7 +49,7 @@ def _segments(jd):
     context_headings = (
         r'responsibilities|job responsibilities|duties|what you(?:\'|’)ll do|what you(?:\'|’)ll be doing',
         r'job description|about the role|role overview|what you(?:\'|’)ll build|key responsibilities',
-        r'about us|about the company|company description|who we are|what we offer|benefits|工作职责|职位描述|工作内容|职责',
+        r'about us|about the company|company description|who we are|what we offer|work benefits|benefits|vendor type|equal employment opportunity|application (?:form|questions?)|how to apply|privacy policy|工作职责|职位描述|工作内容|福利|工作福利|申请流程|申请表',
     )
     for raw in re.split(r'[。；;\n!?！？]+', jd):
         text = _plain(raw)

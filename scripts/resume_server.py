@@ -130,6 +130,17 @@ class StudioHandler(BaseHTTPRequestHandler):
                     self.send_json(200, foreign_opportunities.list_jobs(self.server.case))
             except (OSError, ValueError, TypeError, KeyError) as error:
                 self.send_json(400, {'error': str(error)})
+        elif path == '/api/career/positioning':
+            if not self.opportunity_loopback_only():
+                self.send_json(403, {'error': '职业定位资料仅允许本机访问'})
+                return
+            if not self.has_token():
+                return
+            try:
+                from career_positioning import build_report
+                self.send_json(200, build_report(self.server.case))
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                self.send_json(400, {'error': str(error)})
         elif path in ('/', '/index.html'):
             self.send_page(ASSETS / 'career-workspace.html')
         elif path in ('/demo', '/demo/'):
@@ -251,7 +262,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked', '/api/opportunities/import', '/api/opportunities/discover'):
+        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked', '/api/opportunities/import', '/api/opportunities/discover', '/api/opportunities/discover-daily', '/api/opportunities/prepare'):
             self.send_json(404, {'error': '接口不存在'})
             return
         if endpoint.startswith('/api/opportunities/') and not self.opportunity_loopback_only():
@@ -287,10 +298,19 @@ class StudioHandler(BaseHTTPRequestHandler):
                         raise ValueError('仅接受岗位官网 URL')
                     if len(request['url']) > 2048:
                         raise ValueError('岗位链接过长')
-                elif set(request) - {'tenant', 'limit'} or not isinstance(request.get('tenant'), str):
-                    raise ValueError('请选择受支持的公开 ATS 租户')
-                if endpoint.endswith('/discover') and ('limit' in request and (type(request['limit']) is not int or not 1 <= request['limit'] <= 10)):
+                elif endpoint.endswith('/discover'):
+                    if set(request) - {'tenant', 'limit'} or not isinstance(request.get('tenant'), str):
+                        raise ValueError('请选择受支持的公开 ATS 租户')
+                elif endpoint.endswith('/discover-daily'):
+                    if set(request) - {'limit'}:
+                        raise ValueError('每日发现仅接受岗位数量上限')
+                elif endpoint.endswith('/prepare'):
+                    if set(request) != {'job_keys'} or not isinstance(request.get('job_keys'), list):
+                        raise ValueError('请提供已发现岗位编号列表')
+                if endpoint.endswith(('/discover', '/discover-daily')) and ('limit' in request and (type(request['limit']) is not int or not 1 <= request['limit'] <= 10)):
                     raise ValueError('每轮最多检索 10 个岗位')
+                if endpoint.endswith('/prepare') and (not 1 <= len(request['job_keys']) <= 10):
+                    raise ValueError('每轮最多准备 10 个岗位')
                 self.opportunity_write(endpoint, request)
                 return
             if endpoint == '/api/jd/analyze':
@@ -362,6 +382,12 @@ class StudioHandler(BaseHTTPRequestHandler):
             import foreign_opportunities
             if endpoint.endswith('/import'):
                 result = foreign_opportunities.import_url(self.server.case, request)
+            elif endpoint.endswith('/discover-daily'):
+                from daily_job_search import discover_daily
+                result = discover_daily(self.server.case, request.get('limit', 10))
+            elif endpoint.endswith('/prepare'):
+                from daily_job_search import prepare_selected
+                result = prepare_selected(self.server.case, request['job_keys'], font=self.server.font)
             else:
                 result = foreign_opportunities.discover(self.server.case, request['tenant'], request.get('limit', 10))
             self.send_json(200, result)

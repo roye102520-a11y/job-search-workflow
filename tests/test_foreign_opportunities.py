@@ -169,6 +169,25 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         evidence = self.evidence(capabilities={'work_authorization': {'status': 'confirmed', 'value': False, 'countries': ['CN'], 'source_ref': 'evidence.md#permit'}})
         self.assertNotEqual(assess('Required: UK work authorization.', evidence)[0]['status'], 'not_met')
 
+    def test_application_benefits_and_vendor_sections_are_not_hard_requirements(self):
+        jd = '''Requirements:
+Currently reside in China.
+Must pass training modules and a required test.
+Work benefits:
+Flexible home-based work.
+Work-life balance.
+Vendor Type:
+When applying, select the option describing your working status.
+Equal Employment Opportunity:
+RWS is an equal opportunity employer.'''
+        items = assess(jd, self.evidence())
+        required_text = [item['text'] for item in items if item['level'] == 'required']
+        self.assertTrue(any(item.startswith('Currently reside in China') for item in required_text))
+        self.assertTrue(any('Must pass training modules' in item for item in required_text))
+        self.assertFalse(any('Flexible home-based' in item or 'Work-life balance' in item
+                             or 'Vendor Type' in item or 'working status' in item
+                             or 'equal opportunity employer' in item.lower() for item in required_text))
+
     def test_regression_discovery_resumes_after_manifest_before_tracker_crash(self):
         result = jobs.import_url(self.case, {'url': URL}, transport)
         (self.case / 'application-tracker.csv').unlink()
@@ -219,6 +238,81 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.assertEqual(jobs.matching(self.case, unpaid)['grade'], 'C')
         self.assertEqual(jobs.matching(self.case, unpaid)['posted_compensation']['paid_status'], 'unpaid')
 
+    def test_discover_uses_private_priority_and_excludes_out_of_scope_locations(self):
+        preferences = {'job_search_strategy': {'target_directions': [
+            {'priority': 'P0', 'label': 'AI Operations', 'keywords': ['AI Operations']},
+            {'priority': 'P1', 'label': 'Product Operations', 'keywords': ['Product Operations', 'Product Assistant']},
+            {'priority': 'P2', 'label': 'UX Research', 'keywords': ['UX Research']},
+        ]}}
+        (self.case / 'search-preferences.json').write_text(json.dumps(preferences), encoding='utf-8')
+        identifiers = [f'{i:08x}-1111-1111-1111-111111111111' for i in range(1, 7)]
+        feed_items = [
+            {'id': identifiers[0], 'text': 'Product Assistant Intern', 'hostedUrl': 'https://jobs.lever.co/weloglobal/' + identifiers[0], 'categories': {'location': 'Shanghai, China', 'commitment': 'Internship'}},
+            {'id': identifiers[1], 'text': 'AI Operations Associate', 'hostedUrl': 'https://jobs.lever.co/weloglobal/' + identifiers[1], 'categories': {'location': 'Shanghai, China', 'commitment': 'Full-time'}},
+            {'id': identifiers[2], 'text': 'Senior AI Operations Associate', 'hostedUrl': 'https://jobs.lever.co/weloglobal/' + identifiers[2], 'categories': {'location': 'Shanghai, China', 'commitment': 'Full-time'}},
+            {'id': identifiers[3], 'text': 'AI Operations Intern', 'hostedUrl': 'https://jobs.lever.co/weloglobal/' + identifiers[3], 'categories': {'location': 'Remote', 'commitment': 'Internship'}},
+            {'id': identifiers[4], 'text': 'UX Research Assistant', 'hostedUrl': 'https://jobs.lever.co/weloglobal/' + identifiers[4], 'categories': {'location': 'London, UK', 'commitment': 'Full-time'}},
+            {'id': identifiers[5], 'text': 'AI Operations Associate', 'hostedUrl': 'https://jobs.lever.co/weloglobal/' + identifiers[5], 'categories': {'location': 'Remote, China', 'commitment': 'Full-time'}},
+        ]
+        def fake_transport(url):
+            if '?mode=json' in url:
+                return 200, url, json.dumps(feed_items)
+            ident = url.rsplit('/', 1)[-1]
+            item = next(row for row in feed_items if row['id'] == ident)
+            detail = {'id': ident, 'text': item['text'], 'descriptionPlain': JD,
+                      'categories': item['categories'], 'applyUrl': item['hostedUrl'] + '/apply'}
+            return 200, url, json.dumps(detail)
+        result = jobs.discover(self.case, 'weloglobal', limit=10, transport=fake_transport)
+        titles = [item['job']['title'] for item in result['results']]
+        self.assertEqual(titles, ['AI Operations Associate', 'AI Operations Associate', 'Product Assistant Intern'])
+        self.assertTrue(all(item['job']['location'] != 'London, UK' for item in result['results']))
+        self.assertNotIn('Senior AI Operations Associate', titles)
+        self.assertNotIn(identifiers[3], [item['job']['requisition_id'] for item in result['results']])
+
+    def test_discover_keeps_china_remote_evaluator_when_feed_office_city_is_different(self):
+        ident = '77777777-1111-1111-1111-111111111111'
+        url = 'https://jobs.lever.co/rws/' + ident
+        jd = 'China (Work from Home). Search Engine Evaluator: evaluate search results and provide quality feedback for AI data. Paid contract.'
+        feed = [{'id': ident, 'text': 'Search Engine Evaluator - Chinese Simplified (China)',
+                 'hostedUrl': url, 'categories': {'location': 'Beijing', 'commitment': 'Temporary/Contract'},
+                 'descriptionPlain': jd}]
+        def fake_transport(requested):
+            if '?mode=json' in requested:
+                return 200, requested, json.dumps(feed)
+            return 200, requested, json.dumps({'id': ident, 'text': feed[0]['text'],
+                'descriptionPlain': jd, 'categories': feed[0]['categories'], 'applyUrl': url + '/apply'})
+        result = jobs.discover(self.case, 'rws', limit=10, transport=fake_transport)
+        self.assertEqual(len(result['results']), 1)
+        self.assertEqual(result['results'][0]['job']['company'], 'RWS Group')
+        self.assertEqual(result['results'][0]['job']['location'], 'Beijing')
+
+    def test_china_remote_listing_counts_as_in_scope_despite_ats_office_city(self):
+        job = {'title': 'Search Engine Evaluator - Chinese Simplified (China)',
+               'company': 'RWS Group', 'location': 'Beijing', 'employment_type': 'Temporary/Contract',
+               'jd': 'China (Work from Home). Search Engine Evaluator: evaluate search results and provide quality feedback for AI data. Paid contract. Currently reside in China.',
+               'url': 'https://jobs.lever.co/rws/77777777-1111-1111-1111-111111111111',
+               'verification': {'status': 'verified_open', 'verified_at': '2026-10-16T17:08:57Z'}}
+        match = jobs.matching(self.case, job)
+        self.assertEqual(match['grade'], 'B')  # Permit and compensation still need confirmation.
+        self.assertNotIn('地点尚未证明符合上海、苏州或中国远程范围。', match['grade_reasons'])
+        self.assertTrue(any('远程雇佣国家' in reason for reason in match['grade_reasons']))
+
+    def test_discover_includes_early_career_software_implementation_consultant(self):
+        ident = '88888888-1111-1111-1111-111111111111'
+        url = 'https://jobs.lever.co/veeva/' + ident
+        jd = 'Support software implementation, customer workshops, data migration, system testing and training documentation.'
+        feed = [{'id': ident, 'text': 'Associate Consultant', 'hostedUrl': url,
+                 'categories': {'location': 'China - Shanghai', 'commitment': 'Full-time'},
+                 'descriptionPlain': jd}]
+        def fake_transport(requested):
+            if '?mode=json' in requested:
+                return 200, requested, json.dumps(feed)
+            return 200, requested, json.dumps({'id': ident, 'text': feed[0]['text'],
+                'descriptionPlain': jd, 'categories': feed[0]['categories'], 'applyUrl': url + '/apply'})
+        result = jobs.discover(self.case, 'veeva', limit=10, transport=fake_transport)
+        self.assertEqual(len(result['results']), 1)
+        self.assertEqual(result['results'][0]['job']['title'], 'Associate Consultant')
+
     def test_target_priority_is_separate_from_nonprobabilistic_evidence_coverage(self):
         p0 = jobs.parse(URL, payload())
         p0['verification'] = {'status': 'verified_open', 'checked_at': '2026-10-16T00:00:00+00:00'}
@@ -245,6 +339,9 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.assertEqual(jobs.employment_category({'title': 'Graduate Program Associate', 'employment_type': 'Full-time'}), 'graduate_program')
         self.assertEqual(jobs.employment_category({'title': 'Operations Associate', 'employment_type': 'Full-time'}), 'full_time')
         self.assertEqual(jobs.compensation_details({'jd': 'Responsibilities: organize knowledge articles.'})['paid_status'], 'unknown')
+        hourly = jobs.compensation_details({'jd': 'Pay: Up to 6 USD/hour.'})
+        self.assertEqual(hourly['paid_status'], 'paid')
+        self.assertEqual(hourly['published'], 'Pay: Up to 6 USD/hour.')
         self.assertEqual(jobs.work_arrangement({'location': 'Shanghai', 'jd': 'Responsibilities: organize knowledge articles.'})['status'], 'unknown')
 
     def test_internship_graduate_eligibility_requires_current_official_acceptance(self):

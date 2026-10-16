@@ -11,12 +11,18 @@ def exclusion_reason(data, entry, bullet=None):
             return '待确认或已排除的事实，不进入材料'
         if item.get('conflict') or item.get('conflicts'):
             return '存在未解决的事实冲突'
-    ids = {entry.get('id'), (bullet or {}).get('id')}
+    # Do not let an unconfirmed item with no identifier match the absent
+    # identifier on every entry. This previously excluded the entire evidence
+    # bank whenever it contained ordinary field-level review notes.
+    ids = {value for value in (entry.get('id'), (bullet or {}).get('id'))
+           if isinstance(value, str) and value}
     for item in data.get('unconfirmed', []):
         if not isinstance(item, dict):
             continue
         refs = item.get('evidence_refs', [])
-        if item.get('id') in ids or item.get('entry_id') in ids or item.get('bullet_id') in ids or any(ref in ids for ref in refs):
+        item_ids = (item.get('id'), item.get('entry_id'), item.get('bullet_id'))
+        if (any(value in ids for value in item_ids if isinstance(value, str) and value)
+                or any(ref in ids for ref in refs if isinstance(ref, str) and ref)):
             return '事实库待确认项引用了这条证据'
         if item.get('field') == 'projects.start_date_conflict' and entry.get('kind') == 'project':
             return '项目日期冲突，确认后再使用'

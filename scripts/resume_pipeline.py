@@ -391,7 +391,12 @@ def generate(case, request, font=None):
             write(stage / 'match.md', '\n'.join(match) + '\n')
             name = data['person'].get('name_en') or data['person'].get('name_zh', '')
             points = '\n'.join('- ' + b['en'] for _, b in strongest)
-            email = 'To: （未提供核实过的招聘邮箱；不发送）\nSubject: Application for ' + request['title'] + ' - ' + name + '\n\nDear Hiring Team,\n\nI am interested in the ' + request['title'] + ' position at ' + request['company'] + '. My relevant experience includes:\n\n' + points + '\n\nI would welcome the opportunity to discuss how this experience could contribute to your team. My resume is attached for your review.\n\nBest regards,\n' + name + '\n' + data['person'].get('email', '') + '\n\nAttachments (local draft): ' + pdf_name + '\n'
+            contact_lines = [name]
+            contact_lines.extend(value for value in (data['person'].get('email', ''), data['person'].get('phone', ''), data['person'].get('portfolio', '')) if value)
+            email = ('To: （未提供核实过的招聘邮箱；不发送）\nSubject: Application for ' + request['title'] + ' - ' + name +
+                     '\n\nDear Hiring Team,\n\nI am interested in the ' + request['title'] + ' position at ' + request['company'] + '. My relevant experience includes:\n\n' + points +
+                     '\n\nI would welcome the opportunity to discuss how this experience could contribute to your team. My resume is attached for your review.\n\nBest regards,\n' +
+                     '\n'.join(contact_lines) + '\n\nAttachments (local draft): ' + pdf_name + '\n')
             write(stage / 'email.md', email)
             review = ['# 定制说明与面试追问', '', '当前状态：审阅稿；未发送、未提交。', '', '采用方向：' + FAMILIES[family], '选取项目：' + '、'.join(e['title_zh'] for e in selected if e['kind'] == 'project'), '工作经历保留时间线；按本 JD 关键词调整每段要点优先级。', '', '## 每条证据的追问', '']
             for entry in selected:
