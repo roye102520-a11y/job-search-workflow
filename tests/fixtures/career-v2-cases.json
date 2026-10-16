@@ -1,0 +1,234 @@
+{
+  "single": [
+    {
+      "id": "D01",
+      "family": "user-operations",
+      "title": "用户运营",
+      "jd": "【合成测试】岗位职责：用户运营、用户分层、客户成功。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D02",
+      "family": "user-operations",
+      "title": "客户成功",
+      "jd": "【合成测试】岗位职责：客户服务、客户运营、用户服务。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D03",
+      "family": "ai-content-operations",
+      "title": "知识运营",
+      "jd": "【合成测试】岗位职责：知识库、问答、文档清洗。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D04",
+      "family": "ai-content-operations",
+      "title": "内容运营",
+      "jd": "【合成测试】岗位职责：内容运营、结构化、质量检查。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D05",
+      "family": "implementation-support",
+      "title": "交付助理",
+      "jd": "【合成测试】岗位职责：实施、项目交付、验收。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D06",
+      "family": "implementation-support",
+      "title": "协调员",
+      "jd": "【合成测试】岗位职责：项目助理、进度、操作指南。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D07",
+      "family": "product-operations",
+      "title": "产品助理",
+      "jd": "【合成测试】岗位职责：产品助理、竞品、需求文档。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D08",
+      "family": "product-operations",
+      "title": "产品运营",
+      "jd": "【合成测试】岗位职责：产品运营、用户路径、信息分类。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D09",
+      "family": null,
+      "title": "机器学习工程师",
+      "jd": "【合成测试】岗位职责：分布式模型训练、PyTorch训练框架。整理岗位要求和工作事项，记录进度与问题。"
+    },
+    {
+      "id": "D10",
+      "family": null,
+      "title": "综合助理",
+      "jd": "【合成测试】岗位职责：综合协调，完成其他安排。整理岗位要求和工作事项，记录进度与问题。"
+    }
+  ],
+  "mixed": [
+    {
+      "id": "M01",
+      "family": "user-operations",
+      "title": "用户运营",
+      "jd": "【合成测试】岗位职责：用户运营、用户分层、客户成功、知识库。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M02",
+      "family": "user-operations",
+      "title": "产品经理",
+      "jd": "【合成测试】岗位职责：用户运营、客户运营、客户成功、用户服务。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M03",
+      "family": "product-operations",
+      "title": "用户运营",
+      "jd": "【合成测试】岗位职责：产品助理、产品运营、用户路径、需求文档。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M04",
+      "family": "ai-content-operations",
+      "title": "项目经理",
+      "jd": "【合成测试】岗位职责：知识库、内容运营、文档清洗、问答。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M05",
+      "family": "implementation-support",
+      "title": "AI运营",
+      "jd": "【合成测试】岗位职责：实施、验收、操作指南、进度。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M06",
+      "family": null,
+      "title": "混合运营",
+      "jd": "【合成测试】岗位职责：用户运营、知识库。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M07",
+      "family": null,
+      "title": "混合运营",
+      "jd": "【合成测试】岗位职责：产品运营、项目交付。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M08",
+      "family": "user-operations",
+      "title": "内容运营",
+      "jd": "【合成测试】岗位职责：不要求知识库，用户运营、客户服务。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M09",
+      "family": "implementation-support",
+      "title": "产品助理",
+      "jd": "【合成测试】岗位职责：不是产品运营，实施、验收、进度。记录工作事项，交付可核对材料。"
+    },
+    {
+      "id": "M10",
+      "family": "ai-content-operations",
+      "title": "知识运营",
+      "jd": "【合成测试】岗位职责：无需 OCR，知识库、问答、结构化。记录工作事项，交付可核对材料。"
+    }
+  ],
+  "hard": [
+    {
+      "id": "H01",
+      "jd": "必需：本科。",
+      "status": "supported"
+    },
+    {
+      "id": "H02",
+      "jd": "必需：计算机本科。",
+      "status": "partial"
+    },
+    {
+      "id": "H03",
+      "jd": "必需：计算机硕士。",
+      "status": "not_met"
+    },
+    {
+      "id": "H04",
+      "jd": "必需：至少10年用户运营经验。",
+      "status": "not_met"
+    },
+    {
+      "id": "H05",
+      "jd": "必需：SQL。",
+      "status": "unknown"
+    },
+    {
+      "id": "H06",
+      "jd": "必需：生产级 RAG 系统维护。",
+      "status": "partial"
+    },
+    {
+      "id": "H07",
+      "jd": "必需：熟练使用 OCR。",
+      "status": "partial"
+    },
+    {
+      "id": "H08",
+      "jd": "必需：能够接受出差。",
+      "status": "unknown"
+    },
+    {
+      "id": "H09",
+      "jd": "必需：具备工作许可。",
+      "status": "unknown"
+    },
+    {
+      "id": "H10",
+      "jd": "必需：英文会议流利。",
+      "status": "unknown"
+    }
+  ],
+  "screening": [
+    {
+      "salary": "10-15K·13薪",
+      "expect": "shortlist"
+    },
+    {
+      "salary": "1-1.5万/月·14薪",
+      "expect": "shortlist"
+    },
+    {
+      "salary": "年薪24-36万",
+      "expect": "needs_verification"
+    },
+    {
+      "salary": "1200元/天",
+      "expect": "needs_verification"
+    },
+    {
+      "salary": "15-10K",
+      "expect": "needs_verification"
+    },
+    {
+      "tags": "双休",
+      "description": "每周六必须加班",
+      "expect": "excluded"
+    },
+    {
+      "tags": "双休",
+      "description": "偶尔加班",
+      "expect": "needs_verification"
+    },
+    {
+      "city": "上海",
+      "work_location": "深圳",
+      "expect": "excluded"
+    },
+    {
+      "company": "屏蔽品牌",
+      "expect": "excluded"
+    },
+    {
+      "availability": "已下架",
+      "expect": "excluded"
+    },
+    {
+      "description": "",
+      "expect": "needs_verification"
+    }
+  ],
+  "fact_updates": [
+    "source_hash_changed",
+    "cache_content_changed",
+    "pending_bullet",
+    "entry_conflict",
+    "project_date_conflict"
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "baseline": "749c319754f8751498f8d5178f86624d59172d96",
+  "checked_files": 20,
+  "files": [
+    {
+      "path": "scripts/boss_assist.py",
+      "sha256": "d9a84e964a199e2c918ecafc207f54096997b6d2cce1018df00cb71cdeffeccc",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/boss_workspace.py",
+      "sha256": "d9b25fb2c14954f798888348b88f21b3eda0e486dc0e92293b507dbe540bea82",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/career_workspace.py",
+      "sha256": "945a9ebfdcceefb25134524cec02eec44d6098e75d2d4eeb9bd7ea028b2c4077",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/deepseek_client.py",
+      "sha256": "9c5c3bc245b786b1ef913556d726441499f7c9b4bdac5c2929ea55b240b2cf36",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/demo_server.py",
+      "sha256": "eb745e00699b89a55f104c2f7991edbfb8c88a82671723fab465a2a879ff0650",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/evidence_quality.py",
+      "sha256": "234e664ed89292116ea0a95c9a81cebd642c8a38b7a0f97976bc08cd33fc5145",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/evidence_selection.py",
+      "sha256": "efd6c2ea1a926697f264f44aa363c2046e0100a3869d663dd7f515a279af83f1",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/jd_gap_analysis.py",
+      "sha256": "3c2a7b721581dd19e0aa5bddfca6b0e71007c6853cec7b32ab3f11ecb1a2d8f6",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/jd_requirements.py",
+      "sha256": "d2c79f85e6b1e1efd8b6b6c1ac0c9be76be7c8196d4154163265f829f5294151",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/job_data.py",
+      "sha256": "cbcd5f42d50ccfe5ec951cff5f3feb22eaec945b1772f69be2d976bf63add7e2",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/material_intake.py",
+      "sha256": "ab4c65766638a022657d91b032e90f4e78f39e6c15431205705a48773f6ece56",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/portfolio_renderer.py",
+      "sha256": "0e27a536bc229f94e3705cbe81473faf1259fbe4d6d5d1e30a5d236dad567f5d",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/resume_pipeline.py",
+      "sha256": "17e719064afc88ffc23183297f8cc30bc552bae8786643c7848f2a4b9ab7eec0",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/resume_server.py",
+      "sha256": "f1736037e20a793c2c36c907c0114c20feeeaa8cdff188e658f83625158401bd",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "scripts/search_strategy.py",
+      "sha256": "01aeae1449cbe135a1ea504821492e4c5c5d729c2c273f131959ff48e62f2e7f",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "tests/fixtures/career-v2-cases.json",
+      "sha256": "5d8664b2f9ad6929e79e8d75cdf734fa6c2bc0130527b979c14577e5b98fa514",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "tests/fixtures/jd_cases.json",
+      "sha256": "49bfc78d3505beb142062bde4465e1608a6cb54832b85e7c15be0ecebacc3e6f",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "tests/fixtures/synthetic-case/career-evidence-bank.md",
+      "sha256": "884fcbab2944fc404d4087dfce39b350420bcbd886a33f93e33d24ce7d6d4c24",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "tests/fixtures/synthetic-case/coaching-state.md",
+      "sha256": "90169caaefe3dd247e172942ee59a37a8fdde02d7c1e970c378ed19eb62007b0",
+      "unchanged_from_749c319": true
+    },
+    {
+      "path": "tests/fixtures/synthetic-case/resume-evidence.json",
+      "sha256": "f81cae893dca2e3d63ec9a2658c4b8a0316fd038d67145f2ff16d086162413a4",
+      "unchanged_from_749c319": true
+    }
+  ]
+}

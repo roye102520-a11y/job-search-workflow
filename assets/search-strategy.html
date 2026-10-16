@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>求职策略台 · Career Studio</title>
+  <link rel="stylesheet" href="/career-workspace.css">
+  <style nonce="__CSP_NONCE__">
+    main{max-width:1100px;margin:auto;padding:32px 20px}textarea{width:100%;min-height:180px;box-sizing:border-box}article{margin:18px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}summary{cursor:pointer}progress{width:100%;height:14px}button{margin:8px 8px 8px 0}.meta{color:#63636b;font-size:14px}h1{font-size:36px}a{overflow-wrap:anywhere}
+  </style>
+</head>
+<body><main>
+  <a href="/#applications">← 返回投递进度</a>
+  <h1>把精力用在更合适的岗位上。</h1>
+  <p>批量比较岗位、安排补齐顺序，再跟进已经提交的申请。</p>
+  <p id="status" role="status" aria-live="polite">正在连接本地案例…</p>
+  <section class="surface">
+    <h2>1. 批量岗位对比</h2>
+    <p>导入含完整 JD 的 JSON 数组，每个岗位填写 company、title、jd，可选 url、deadline、posted_date。日期使用 YYYY-MM-DD。</p>
+    <label for="jobs">岗位列表</label>
+    <textarea id="jobs" placeholder='[{"company":"示例公司","title":"内容运营","jd":"任职要求：知识库整理；SQL 为加分项","deadline":"2026-12-01"}]'></textarea>
+    <label for="file">或选择 JSON 文件（粘贴内容优先）</label><input id="file" type="file" accept=".json,application/json">
+    <button id="rank" class="primary" disabled>比较岗位并保存报告</button>
+    <p class="meta">只比较导入内容，未联网核验岗位。初筛分衡量规则识别的证据覆盖，不代表录取概率；进入简历制作前仍需逐项复核。</p>
+    <div id="ranked"></div>
+  </section>
+  <section class="surface"><h2>2. 共同缺口与学习优先级</h2><p>优先级 = 涉及岗位数 + 必需项岗位数 × 2。同一岗位不重复计数；“待核实”不等于不会。</p><div id="gaps"><p>完成一次岗位对比后显示。</p></div></section>
+  <section class="surface"><h2>3. 待跟进申请</h2><p>默认从最后一次已记录活动起静默 10 天，最多提示两次成功跟进。发送前核对最新回复及收件人。</p><button id="refresh" class="secondary" disabled>刷新待跟进清单</button><div id="followups"></div></section>
+</main>
+<script nonce="__CSP_NONCE__">
+'use strict';
+const $=id=>document.getElementById(id);
+let token='';
+function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;}
+async function api(path,body){const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'X-Local-Token':token,...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});const value=await response.json();if(!response.ok)throw Error(value.error||'请求未完成');return value;}
+const labels={review:'可继续人工审阅',needs_review:'必需项或证据待核实',blocked:'必需项不满足',missing_jd:'缺少 JD 正文',expired:'已过所填截止日期',excluded:'排除公司',tracked:'已在投递台账',duplicate:'本批重复链接'};
+function render(result){
+  const list=$('ranked');list.replaceChildren(el('p','报告日期：'+result.as_of+' · '+result.score_label));
+  if(result.file){const a=el('a','下载本次 JSON 报告');a.href='/files/'+result.file.split('/').map(encodeURIComponent).join('/');a.download='strategy.json';list.append(a);}
+  for(const job of result.jobs){
+    const card=el('article');card.append(el('h3','#'+job.id+' '+job.company+' · '+job.title),el('p',labels[job.status]+(job.urgent?' · 7 天内截止':'')));
+    if(job.score!==null){const meter=el('progress');meter.max=100;meter.value=job.score;meter.setAttribute('aria-label','证据覆盖初筛分 '+job.score);card.append(el('p',job.score+' / 100'),meter);}
+    if(job.url){const a=el('a','查看岗位来源');a.href=job.url;a.target='_blank';a.rel='noopener noreferrer';card.append(a);}
+    for(const warning of job.warnings)card.append(el('p',warning));
+    if(job.duplicate_of)card.append(el('p','与 #'+job.duplicate_of+' 使用相同规范化链接；未重复计入缺口。'));
+    const details=el('details');details.append(el('summary','查看逐项证据与待核实点'));
+    for(const item of job.requirements)details.append(el('p',item.text+' → '+({supported:'有相关证据',partial:'部分相关',unknown:'待核实',not_met:'不满足'}[item.status])+'；'+item.reason+(item.evidence_refs.length?'；证据：'+item.evidence_refs.join('、'):'')));
+    card.append(details);list.append(card);
+  }
+  $('gaps').replaceChildren();
+  if(!result.gaps.length)$('gaps').append(el('p','本批没有可统计的缺口；仍需核对规则未识别的要求。'));
+  for(const gap of result.gaps){const card=el('article');card.append(el('h3',gap.topic),el('p','优先级 '+gap.priority+' · '+gap.job_count+' 个岗位 · '+gap.required_count+' 个岗位列为必需项'),el('p',gap.next_action),el('p','交付物：'+gap.deliverable));const detail=el('details');detail.append(el('summary','查看原始要求'));for(const x of gap.examples)detail.append(el('p','#'+x.job_id+'：'+x.requirement+'（'+({unknown:'待核实',partial:'部分相关',not_met:'不满足'}[x.status]||'待核实')+'）'));card.append(detail);$('gaps').append(card);}
+}
+async function refresh(){
+  const result=await api('/api/strategy/followups');const list=$('followups');list.replaceChildren(el('p',result.note));
+  if(!result.due.length)list.append(el('p','当前没有符合条件的待跟进申请。'));
+  for(const row of result.due){const card=el('article');card.append(el('h3',row.company+' · '+row.role),el('p','已静默 '+row.quiet_days+' 天 · 已成功跟进 '+row.followups_sent+' 次'),el('pre',row.draft));const copy=el('button','复制草稿');copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(row.draft);$('status').textContent='已复制草稿，尚未发送。';}catch{$('status').textContent='复制不可用，请手动选择草稿文字。';}});card.append(copy);list.append(card);}
+  for(const row of result.held)list.append(el('p',row.job_key+'：'+row.reason));
+}
+$('rank').addEventListener('click',async()=>{const button=$('rank');button.disabled=true;try{let raw=$('jobs').value.trim();if(!raw&&$('file').files[0]){if($('file').files[0].size>250000)throw Error('文件超过 250 KB，请拆分批次');raw=await $('file').files[0].text();}if(!raw)throw Error('请粘贴岗位列表或选择文件');const parsed=JSON.parse(raw);const result=await api('/api/strategy/rank',Array.isArray(parsed)?{jobs:parsed}:parsed);render(result);$('status').textContent='报告已保存到当前案例 generated 目录。';}catch(e){$('status').textContent=e.message;}finally{button.disabled=false;}});
+$('refresh').addEventListener('click',async()=>{try{await refresh();$('status').textContent='跟进清单已刷新。';}catch(e){$('status').textContent=e.message;}});
+(async()=>{try{token=(await api('/api/bootstrap')).token;$('rank').disabled=false;$('refresh').disabled=false;await refresh();$('status').textContent='已连接本地案例。';}catch(e){$('status').textContent=e.message;}})();
+</script></body></html>

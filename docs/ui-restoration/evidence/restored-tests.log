@@ -1,0 +1,244 @@
+test_blocked_company_import_is_exact_and_deduplicated (test_boss_assist.BossAssistantTests.test_blocked_company_import_is_exact_and_deduplicated) ... ok
+test_config_rejects_typos_bad_ranges_and_unsafe_placeholders (test_boss_assist.BossAssistantTests.test_config_rejects_typos_bad_ranges_and_unsafe_placeholders) ... ok
+test_conflicting_rows_with_same_stable_id_are_not_silently_merged (test_boss_assist.BossAssistantTests.test_conflicting_rows_with_same_stable_id_are_not_silently_merged) ... ok
+test_greeting_is_only_a_confirmed_local_draft (test_boss_assist.BossAssistantTests.test_greeting_is_only_a_confirmed_local_draft) ... ok
+test_invalid_row_is_reported_and_valid_rows_are_not_lost (test_boss_assist.BossAssistantTests.test_invalid_row_is_reported_and_valid_rows_are_not_lost) ... ok
+test_json_csv_and_cli_roundtrip (test_boss_assist.BossAssistantTests.test_json_csv_and_cli_roundtrip) ... ok
+test_open_count_zero_means_unlimited_and_unknown_needs_review (test_boss_assist.BossAssistantTests.test_open_count_zero_means_unlimited_and_unknown_needs_review) ... ok
+test_salary_never_infers_missing_or_annual_pay (test_boss_assist.BossAssistantTests.test_salary_never_infers_missing_or_annual_pay) ... ok
+test_stable_id_dedup_ignores_session_parameters_but_unknown_urls_survive (test_boss_assist.BossAssistantTests.test_stable_id_dedup_ignores_session_parameters_but_unknown_urls_survive) ... ok
+test_weekend_claim_is_read_from_text_but_stays_unverified (test_boss_assist.BossAssistantTests.test_weekend_claim_is_read_from_text_but_stays_unverified) ... ok
+test_bad_payload_and_blocked_import (test_boss_http.BossHTTPTests.test_bad_payload_and_blocked_import) ... 127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/settings HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/blocked HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/blocked HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/screen HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/screen HTTP/1.1" 403 -
+ok
+test_screen_persists_reclassifies_and_never_updates_tracker (test_boss_http.BossHTTPTests.test_screen_persists_reclassifies_and_never_updates_tracker) ... 127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /api/boss HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /api/boss HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /api/boss HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/screen HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/boss/settings HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /api/boss HTTP/1.1" 200 -
+ok
+test_bad_import_does_not_replace_previous_jobs (test_boss_workspace.BossWorkspaceTests.test_bad_import_does_not_replace_previous_jobs) ... ok
+test_blocked_companies_are_merged_without_external_action (test_boss_workspace.BossWorkspaceTests.test_blocked_companies_are_merged_without_external_action) ... ok
+test_seed_preferences_and_reclassify_saved_rows (test_boss_workspace.BossWorkspaceTests.test_seed_preferences_and_reclassify_saved_rows) ... ok
+test_company_size_normalization_and_partial_overlap (test_career_studio_v2.V2AdditionalEvidenceTests.test_company_size_normalization_and_partial_overlap) ... ok
+test_composite_degree_does_not_hide_sql_requirement (test_career_studio_v2.V2AdditionalEvidenceTests.test_composite_degree_does_not_hide_sql_requirement) ... ok
+test_conflicting_event_id_never_counts_as_confirmed_submission (test_career_studio_v2.V2AdditionalEvidenceTests.test_conflicting_event_id_never_counts_as_confirmed_submission) ... ok
+test_future_employment_does_not_meet_ten_years (test_career_studio_v2.V2AdditionalEvidenceTests.test_future_employment_does_not_meet_ten_years) ... ok
+test_incomplete_submission_event_never_counts_as_real (test_career_studio_v2.V2AdditionalEvidenceTests.test_incomplete_submission_event_never_counts_as_real) ... ok
+test_ongoing_education_is_partial (test_career_studio_v2.V2AdditionalEvidenceTests.test_ongoing_education_is_partial) ... ok
+test_pending_education_is_not_used_as_supported (test_career_studio_v2.V2AdditionalEvidenceTests.test_pending_education_is_not_used_as_supported) ... ok
+test_title_only_without_keyword_does_not_exclude_unknown_jd (test_career_studio_v2.V2AdditionalEvidenceTests.test_title_only_without_keyword_does_not_exclude_unknown_jd) ... ok
+test_adjacent_tags_do_not_prove_rag (test_career_studio_v2.V2Tests.test_adjacent_tags_do_not_prove_rag) ... ok
+test_degree_copy_is_candidate_specific (test_career_studio_v2.V2Tests.test_degree_copy_is_candidate_specific) ... ok
+test_distinct_jds_and_candidates_do_not_share_selection (test_career_studio_v2.V2Tests.test_distinct_jds_and_candidates_do_not_share_selection) ... ok
+test_empty_workspace_has_first_action_and_no_fake_stats (test_career_studio_v2.V2Tests.test_empty_workspace_has_first_action_and_no_fake_stats) ... ok
+test_exact_repeat_reuses_files_and_new_priority_creates_version (test_career_studio_v2.V2Tests.test_exact_repeat_reuses_files_and_new_priority_creates_version) ... ok
+test_five_fact_update_and_conflict_samples (test_career_studio_v2.V2Tests.test_five_fact_update_and_conflict_samples) ... ok
+test_manual_direction_does_not_override_unsupported (test_career_studio_v2.V2Tests.test_manual_direction_does_not_override_unsupported) ... ok
+test_no_data_never_means_not_met (test_career_studio_v2.V2Tests.test_no_data_never_means_not_met) ... ok
+test_priority_rescues_important_omitted_project (test_career_studio_v2.V2Tests.test_priority_rescues_important_omitted_project) ... ok
+test_salary_units_and_payment_counts (test_career_studio_v2.V2Tests.test_salary_units_and_payment_counts) ... ok
+test_same_id_with_changed_conditions_is_conflict (test_career_studio_v2.V2Tests.test_same_id_with_changed_conditions_is_conflict) ... ok
+test_selection_reports_every_candidate_and_does_not_mutate (test_career_studio_v2.V2Tests.test_selection_reports_every_candidate_and_does_not_mutate) ... ok
+test_stale_source_removes_recommendation_evidence (test_career_studio_v2.V2Tests.test_stale_source_removes_recommendation_evidence) ... ok
+test_ten_hard_conditions (test_career_studio_v2.V2Tests.test_ten_hard_conditions) ... ok
+test_ten_plus_screening_anomalies (test_career_studio_v2.V2Tests.test_ten_plus_screening_anomalies) ... ok
+test_ten_single_and_ten_mixed_routes (test_career_studio_v2.V2Tests.test_ten_single_and_ten_mixed_routes) ... ok
+test_updated_cache_invalidates_material_reuse_and_portfolio (test_career_studio_v2.V2Tests.test_updated_cache_invalidates_material_reuse_and_portfolio) ... ok
+test_http_workspace_resources_save_and_preview (test_career_workspace.WorkspaceTests.test_http_workspace_resources_save_and_preview) ... 127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /api/workspace HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /api/workspace HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /studio HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /assets/career-workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /resources/resume-evidence.json HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /resources/career-evidence-bank.md HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/workspace/review HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/workspace/material HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "POST /api/workspace/portfolio HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /portfolio-preview/portfolio-20261015T042644-d0feb43b HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:44] "GET /files/generated/portfolio-20261015T042644-d0feb43b/portfolio.md HTTP/1.1" 200 -
+ok
+test_intake_deduplicates_without_modifying_facts (test_career_workspace.WorkspaceTests.test_intake_deduplicates_without_modifying_facts) ... ok
+test_invalid_reviews_rejected (test_career_workspace.WorkspaceTests.test_invalid_reviews_rejected) ... ok
+test_portfolio_uses_selected_facts_and_keeps_history (test_career_workspace.WorkspaceTests.test_portfolio_uses_selected_facts_and_keeps_history) ... ok
+test_project_links_tolerate_spaces_in_names (test_career_workspace.WorkspaceTests.test_project_links_tolerate_spaces_in_names) ... ok
+test_recommendation_reason_does_not_copy_another_candidates_metrics (test_career_workspace.WorkspaceTests.test_recommendation_reason_does_not_copy_another_candidates_metrics) ... ok
+test_resource_allowlist_and_symlinks (test_career_workspace.WorkspaceTests.test_resource_allowlist_and_symlinks) ... ok
+test_resume_variant_limits_website_to_selected_facts (test_career_workspace.WorkspaceTests.test_resume_variant_limits_website_to_selected_facts) ... ok
+test_review_is_idempotent_and_does_not_change_facts (test_career_workspace.WorkspaceTests.test_review_is_idempotent_and_does_not_change_facts) ... ok
+test_snapshot_has_no_invented_outcomes (test_career_workspace.WorkspaceTests.test_snapshot_has_no_invented_outcomes) ... ok
+test_stale_evidence_blocks_portfolio_and_warns_dashboard (test_career_workspace.WorkspaceTests.test_stale_evidence_blocks_portfolio_and_warns_dashboard) ... ok
+test_conflicting_stage_alias_fails_without_overwriting_csv (test_full_workflow.FullWorkflowCLI.test_conflicting_stage_alias_fails_without_overwriting_csv) ... ok
+test_duplicate_by_alias_or_same_requisition (test_full_workflow.FullWorkflowCLI.test_duplicate_by_alias_or_same_requisition) ... ok
+test_duplicate_tracker_keys_block_event_before_append (test_full_workflow.FullWorkflowCLI.test_duplicate_tracker_keys_block_event_before_append) ... ok
+test_entire_cli_success_flow_and_report (test_full_workflow.FullWorkflowCLI.test_entire_cli_success_flow_and_report) ... ok
+test_evidence_missing_or_outside_case_fails_without_event (test_full_workflow.FullWorkflowCLI.test_evidence_missing_or_outside_case_fails_without_event) ... ok
+test_extra_columns_alias_and_sync_survive_commands (test_full_workflow.FullWorkflowCLI.test_extra_columns_alias_and_sync_survive_commands) ... ok
+test_feedback_cannot_reference_another_jobs_attempt (test_full_workflow.FullWorkflowCLI.test_feedback_cannot_reference_another_jobs_attempt) ... ok
+test_feedback_with_unknown_attempt_is_rejected (test_full_workflow.FullWorkflowCLI.test_feedback_with_unknown_attempt_is_rejected) ... ok
+test_final_preflight_failure_does_not_create_tracker_or_attempt (test_full_workflow.FullWorkflowCLI.test_final_preflight_failure_does_not_create_tracker_or_attempt) ... ok
+test_idempotent_record_and_conflicting_id (test_full_workflow.FullWorkflowCLI.test_idempotent_record_and_conflicting_id) ... ok
+test_invalid_intervals_and_future_observation_are_rejected (test_full_workflow.FullWorkflowCLI.test_invalid_intervals_and_future_observation_are_rejected) ... ok
+test_lock_contention_fails_cleanly (test_full_workflow.FullWorkflowCLI.test_lock_contention_fails_cleanly) ... ok
+test_malformed_json_shapes_fail_cleanly (test_full_workflow.FullWorkflowCLI.test_malformed_json_shapes_fail_cleanly) ... ok
+test_reconcile_recovers_stale_tracker_idempotently (test_full_workflow.FullWorkflowCLI.test_reconcile_recovers_stale_tracker_idempotently) ... ok
+test_report_does_not_count_drafts_or_outreach (test_full_workflow.FullWorkflowCLI.test_report_does_not_count_drafts_or_outreach) ... ok
+test_submission_attribution_survives_draft_edit_during_unknown (test_full_workflow.FullWorkflowCLI.test_submission_attribution_survives_draft_edit_during_unknown) ... ok
+test_symlink_cannot_escape_case_for_attachment (test_full_workflow.FullWorkflowCLI.test_symlink_cannot_escape_case_for_attachment) ... ok
+test_tampered_frozen_attachment_blocks_submission (test_full_workflow.FullWorkflowCLI.test_tampered_frozen_attachment_blocks_submission) ... ok
+test_unknown_failed_retry_then_success (test_full_workflow.FullWorkflowCLI.test_unknown_failed_retry_then_success) ... ok
+test_generic_jd_uses_cautious_fallback (test_jd_gap_analysis.GapAnalysisTests.test_generic_jd_uses_cautious_fallback) ... ok
+test_missing_evidence_is_not_invented (test_jd_gap_analysis.GapAnalysisTests.test_missing_evidence_is_not_invented) ... ok
+test_requires_numbered_points (test_jd_gap_analysis.GapAnalysisTests.test_requires_numbered_points) ... ok
+test_training_jd_has_all_points_and_seven_days (test_jd_gap_analysis.GapAnalysisTests.test_training_jd_has_all_points_and_seven_days) ... ok
+test_content_organization_and_document_management_use_direct_evidence (test_jd_requirements.RequirementTests.test_content_organization_and_document_management_use_direct_evidence) ... ok
+test_english_comma_list_stays_one_experience_requirement (test_jd_requirements.RequirementTests.test_english_comma_list_stays_one_experience_requirement) ... ok
+test_known_degree_and_user_experience_supported_without_double_count (test_jd_requirements.RequirementTests.test_known_degree_and_user_experience_supported_without_double_count) ... ok
+test_masters_and_ml_training_are_documented_not_met (test_jd_requirements.RequirementTests.test_masters_and_ml_training_are_documented_not_met) ... ok
+test_negative_requirement_is_excluded (test_jd_requirements.RequirementTests.test_negative_requirement_is_excluded) ... ok
+test_preferred_sql_is_not_promoted_to_required (test_jd_requirements.RequirementTests.test_preferred_sql_is_not_promoted_to_required) ... ok
+test_unknown_work_permission_and_travel_stay_unknown (test_jd_requirements.RequirementTests.test_unknown_work_permission_and_travel_stay_unknown) ... ok
+test_consultation_not_submission (test_job_data.JobDataTests.test_consultation_not_submission) ... ok
+test_crash_after_start_blocks_retry_and_snapshot_survives (test_job_data.JobDataTests.test_crash_after_start_blocks_retry_and_snapshot_survives) ... ok
+test_empty_report_does_not_count_prepared (test_job_data.JobDataTests.test_empty_report_does_not_count_prepared) ... ok
+test_evidence_required_and_draft_rejected (test_job_data.JobDataTests.test_evidence_required_and_draft_rejected) ... ok
+test_frozen_attachment_tamper_blocks_success_record (test_job_data.JobDataTests.test_frozen_attachment_tamper_blocks_success_record) ... ok
+test_hash_tampering (test_job_data.JobDataTests.test_hash_tampering) ... ok
+test_key_collision_with_different_requisition (test_job_data.JobDataTests.test_key_collision_with_different_requisition) ... ok
+test_legacy_results_not_silently_ignored (test_job_data.JobDataTests.test_legacy_results_not_silently_ignored) ... ok
+test_missing_and_outside_paths (test_job_data.JobDataTests.test_missing_and_outside_paths) ... ok
+test_out_of_order_observation_rejected (test_job_data.JobDataTests.test_out_of_order_observation_rejected) ... ok
+test_preserve_extra_columns_and_sync (test_job_data.JobDataTests.test_preserve_extra_columns_and_sync) ... ok
+test_report_uses_submission_version_and_past_interview (test_job_data.JobDataTests.test_report_uses_submission_version_and_past_interview) ... ok
+test_same_title_different_job_allowed (test_job_data.JobDataTests.test_same_title_different_job_allowed) ... ok
+test_tracking_params_and_job_identity (test_job_data.JobDataTests.test_tracking_params_and_job_identity) ... ok
+test_unknown_submission_date_is_not_now (test_job_data.JobDataTests.test_unknown_submission_date_is_not_now) ... ok
+test_unknown_then_success_and_idempotent_record (test_job_data.JobDataTests.test_unknown_then_success_and_idempotent_record) ... ok
+test_unresolved_blocks_start (test_job_data.JobDataTests.test_unresolved_blocks_start) ... ok
+test_cli_closed_job_cannot_reopen (test_job_data.RecoveryRegressionTests.test_cli_closed_job_cannot_reopen) ... ok
+test_late_confirmation_preserves_stage_and_interview_count (test_job_data.RecoveryRegressionTests.test_late_confirmation_preserves_stage_and_interview_count) ... ok
+test_tracker_references_submitted_snapshot (test_job_data.RecoveryRegressionTests.test_tracker_references_submitted_snapshot) ... ok
+test_different_job_families_select_meaningfully_different_evidence (test_resume_pipeline.ResumePipelineTests.test_different_job_families_select_meaningfully_different_evidence) ... ok
+test_existing_application_url_does_not_create_a_second_manifest (test_resume_pipeline.ResumePipelineTests.test_existing_application_url_does_not_create_a_second_manifest) ... ok
+test_generated_resume_excludes_known_false_claims_and_does_not_repeat_highlight (test_resume_pipeline.ResumePipelineTests.test_generated_resume_excludes_known_false_claims_and_does_not_repeat_highlight) ... ok
+test_jd_only_request_generates_with_explicit_or_placeholder_metadata (test_resume_pipeline.ResumePipelineTests.test_jd_only_request_generates_with_explicit_or_placeholder_metadata) ... ok
+test_neutral_chronological_role_keeps_two_sourced_details (test_resume_pipeline.ResumePipelineTests.test_neutral_chronological_role_keeps_two_sourced_details) ... ok
+test_six_realistic_synthetic_jds_route_and_generate_expected_packages (test_resume_pipeline.ResumePipelineTests.test_six_realistic_synthetic_jds_route_and_generate_expected_packages) ... ok
+test_stale_source_digest_blocks_generation_before_writing_artifacts (test_resume_pipeline.ResumePipelineTests.test_stale_source_digest_blocks_generation_before_writing_artifacts) ... ok
+test_tracking_parameters_and_query_order_do_not_bypass_url_deduplication (test_resume_pipeline.ResumePipelineTests.test_tracking_parameters_and_query_order_do_not_bypass_url_deduplication) ... ok
+test_unsupported_ml_has_blocking_requirements_and_never_creates_resume (test_resume_pipeline.ResumePipelineTests.test_unsupported_ml_has_blocking_requirements_and_never_creates_resume) ... ok
+test_url_creates_only_a_preparing_manifest_with_explicit_open_checks (test_resume_pipeline.ResumePipelineTests.test_url_creates_only_a_preparing_manifest_with_explicit_open_checks) ... ok
+test_ambiguous_family_can_return_only_match_without_pdf (test_resume_server.StudioHTTPTests.test_ambiguous_family_can_return_only_match_without_pdf) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_bad_json_shapes_and_unexpected_fields_rejected (test_resume_server.StudioHTTPTests.test_bad_json_shapes_and_unexpected_fields_rejected) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+ok
+test_binds_only_ipv4_loopback (test_resume_server.StudioHTTPTests.test_binds_only_ipv4_loopback) ... ok
+test_bootstrap_has_random_token_and_families_no_cors (test_resume_server.StudioHTTPTests.test_bootstrap_has_random_token_and_families_no_cors) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/bootstrap HTTP/1.1" 200 -
+ok
+test_business_error_is_friendly_and_releases_lock (test_resume_server.StudioHTTPTests.test_business_error_is_friendly_and_releases_lock) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_cors_preflight_is_not_enabled (test_resume_server.StudioHTTPTests.test_cors_preflight_is_not_enabled) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "OPTIONS /api/generate HTTP/1.1" 405 -
+ok
+test_generate_returns_local_artifacts_and_passes_request (test_resume_server.StudioHTTPTests.test_generate_returns_local_artifacts_and_passes_request) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/generated/synthetic-result/resume.pdf HTTP/1.1" 200 -
+ok
+test_generator_cannot_publish_private_case_path (test_resume_server.StudioHTTPTests.test_generator_cannot_publish_private_case_path) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+ok
+test_host_and_origin_restricted (test_resume_server.StudioHTTPTests.test_host_and_origin_restricted) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/bootstrap HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_html_has_nonce_csp_and_no_candidate_facts (test_resume_server.StudioHTTPTests.test_html_has_nonce_csp_and_no_candidate_facts) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "GET / HTTP/1.1" 200 -
+ok
+test_invalid_json_content_type_and_body_limit (test_resume_server.StudioHTTPTests.test_invalid_json_content_type_and_body_limit) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 415 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 413 -
+ok
+test_jd_analysis_and_current_target_are_token_protected (test_resume_server.StudioHTTPTests.test_jd_analysis_and_current_target_are_token_protected) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/jd/current HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/jd/current HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/jd/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/jd/analyze HTTP/1.1" 403 -
+ok
+test_markdown_served_as_plain_text_with_nosniff (test_resume_server.StudioHTTPTests.test_markdown_served_as_plain_text_with_nosniff) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/generated/synthetic-result/match.md HTTP/1.1" 200 -
+ok
+test_missing_wrong_or_nonascii_token_rejected (test_resume_server.StudioHTTPTests.test_missing_wrong_or_nonascii_token_rejected) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 403 -
+ok
+test_parallel_generation_is_serialized (test_resume_server.StudioHTTPTests.test_parallel_generation_is_serialized) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 409 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_private_files_traversal_and_symlinks_not_served (test_resume_server.StudioHTTPTests.test_private_files_traversal_and_symlinks_not_served) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/generate HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/../profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/generated/../profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/generated/%2e%2e/profile.json HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/generated/synthetic-result/linked.md HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files/generated/synthetic-result/active.html HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /files//etc/passwd HTTP/1.1" 404 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /profile.json HTTP/1.1" 404 -
+ok
+test_strategy_uses_auth_and_saves_report_without_submission (test_resume_server.StudioHTTPTests.test_strategy_uses_auth_and_saves_report_without_submission) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /strategy HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/strategy/followups HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/strategy/rank HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/strategy/rank HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/strategy/followups HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "POST /api/strategy/rank HTTP/1.1" 409 -
+ok
+test_conflicting_legacy_stage_aliases_rejected (test_search_strategy.StrategyTests.test_conflicting_legacy_stage_aliases_rejected) ... ok
+test_dates_urgent_expired_invalid_and_stale (test_search_strategy.StrategyTests.test_dates_urgent_expired_invalid_and_stale) ... ok
+test_dedup_preserves_job_ids_and_does_not_merge_titles (test_search_strategy.StrategyTests.test_dedup_preserves_job_ids_and_does_not_merge_titles) ... ok
+test_delayed_confirmation_preserves_sent_followups (test_search_strategy.StrategyTests.test_delayed_confirmation_preserves_sent_followups) ... ok
+test_drafts_do_not_consume_sent_quota (test_search_strategy.StrategyTests.test_drafts_do_not_consume_sent_quota) ... ok
+test_duplicate_event_id_does_not_consume_extra_quota (test_search_strategy.StrategyTests.test_duplicate_event_id_does_not_consume_extra_quota) ... ok
+test_followup_draft_readonly_and_exact_threshold (test_search_strategy.StrategyTests.test_followup_draft_readonly_and_exact_threshold) ... ok
+test_gaps_count_jobs_once_and_separate_eligibility (test_search_strategy.StrategyTests.test_gaps_count_jobs_once_and_separate_eligibility) ... ok
+test_hard_fail_and_unknown_never_outrank_review (test_search_strategy.StrategyTests.test_hard_fail_and_unknown_never_outrank_review) ... ok
+test_hash_route_job_ids_are_not_merged (test_search_strategy.StrategyTests.test_hash_route_job_ids_are_not_merged) ... ok
+test_incomplete_or_missing_submission_evidence_is_held (test_search_strategy.StrategyTests.test_incomplete_or_missing_submission_evidence_is_held) ... ok
+test_invalid_or_future_events_not_used_for_drafts (test_search_strategy.StrategyTests.test_invalid_or_future_events_not_used_for_drafts) ... ok
+test_no_submission_event_means_no_draft (test_search_strategy.StrategyTests.test_no_submission_event_means_no_draft) ... ok
+test_report_preserves_inputs_and_tracker (test_search_strategy.StrategyTests.test_report_preserves_inputs_and_tracker) ... ok
+test_sent_limit_recent_reply_and_unknown_submission (test_search_strategy.StrategyTests.test_sent_limit_recent_reply_and_unknown_submission) ... ok
+test_stale_evidence_and_bad_shapes_rejected (test_search_strategy.StrategyTests.test_stale_evidence_and_bad_shapes_rejected) ... ok
+test_tracked_excluded_and_missing_not_scored (test_search_strategy.StrategyTests.test_tracked_excluded_and_missing_not_scored) ... ok
+test_original_fact_source_is_authenticated_and_allowlisted (test_v2_http.V2HTTPTests.test_original_fact_source_is_authenticated_and_allowlisted) ... 127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/evidence/source?ref=career-evidence-bank.md HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/evidence/source?ref=career-evidence-bank.md%23beacon HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:47] "GET /api/evidence/source?ref=.env HTTP/1.1" 400 -
+ok
+test_partial_blocks_generation_readiness (test_v2_http.V2HTTPTests.test_partial_blocks_generation_readiness) ... 127.0.0.1 - - [15/Oct/2026 12:26:48] "POST /api/generate HTTP/1.1" 200 -
+ok
+test_preview_is_authenticated_and_readonly (test_v2_http.V2HTTPTests.test_preview_is_authenticated_and_readonly) ... 127.0.0.1 - - [15/Oct/2026 12:26:48] "POST /api/selection HTTP/1.1" 403 -
+127.0.0.1 - - [15/Oct/2026 12:26:48] "POST /api/selection HTTP/1.1" 200 -
+ok
+test_priority_and_budget_validation_recovers (test_v2_http.V2HTTPTests.test_priority_and_budget_validation_recovers) ... 127.0.0.1 - - [15/Oct/2026 12:26:49] "POST /api/selection HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:49] "POST /api/selection HTTP/1.1" 400 -
+127.0.0.1 - - [15/Oct/2026 12:26:49] "POST /api/selection HTTP/1.1" 200 -
+ok
+test_public_demo_does_not_embed_private_data (test_v2_http.V2HTTPTests.test_public_demo_does_not_embed_private_data) ... 127.0.0.1 - - [15/Oct/2026 12:26:49] "GET /demo HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:49] "GET /demo/preview.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2026 12:26:49] "GET /demo/../../resume-evidence.json HTTP/1.1" 404 -
+ok
+
+----------------------------------------------------------------------
+Ran 150 tests in 6.351s
+
+OK

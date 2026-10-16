@@ -18,7 +18,8 @@
       <span class="header-note">公开演示</span>
     </div>
   </header>
-  <main id="main">
+  <div class="demo-boundary" role="note">合成数据演示：可以切换预设岗位与查看使用路径；不能读取真实候选人资料，不连接 BOSS 账号。完整功能需要另外启动本地工作台。</div>
+  <main id="main" tabindex="-1">
     <section class="hero wrap" id="top" aria-labelledby="hero-title">
       <div class="hero-main">
         <h1 id="hero-title">同一份经历，<br>为每份岗位<span>重新选材。</span></h1>
@@ -70,6 +71,7 @@
           <p class="pending"><span class="pending-dot" aria-hidden="true"></span><span id="demo-pending">待确认：使用效果与个人贡献边界。</span></p>
         </div>
       </div>
+      <button class="role-choice" id="demo-review" type="button">查看审阅状态</button><p id="demo-status" class="demo-footnote" role="status" hidden></p>
       <p class="demo-footnote">以上岗位、经历和描述均为合成示例。真实生成需要本人提供事实材料与完整 JD；缺少的结果不会被编造。</p>
     </section>
 
@@ -100,10 +102,13 @@
     <section class="use-band" id="use" aria-labelledby="use-title">
       <div class="wrap use-layout">
         <div><h2 id="use-title">公开展示，<br>本地完成实际工作。</h2><p>这个页面展示工作方式。完整工作台在你的电脑运行，读取由你保管的案例材料，生成对应 JD 的审阅稿。</p></div>
-        <div class="use-detail"><h3>开始使用 Skill</h3><p>在本地安装依赖，指定你的案例目录并启动服务，然后在浏览器打开工作台。</p><pre><code>python3 scripts/resume_server.py \
+        <div class="use-detail"><h3>开始使用 Skill</h3><p>在本地安装依赖，准备案例目录并启动服务，然后打开 http://127.0.0.1:8765。首次使用导入材料并核对事实；已有事实库可直接分析 JD。</p><pre><code>python3 -m pip install -r requirements.txt
+mkdir -p /path/to/your-case
+python3 scripts/resume_server.py \
   --case /path/to/your-case \
   --port 8765</code></pre><p class="privacy-note">本公开预览不连接本机 API，不读取个人简历，也不上传投递记录。跨设备使用完整功能时，需由你自行配置安全的服务与数据存储。</p></div>
       </div>
+      <div class="wrap starter-guide"><details class="scenario-guide"><summary>按你的情况开始：五种使用路径</summary><label for="scenario">体验一种使用场景</label><select id="scenario"><option value="new">第一次使用，还没有简历</option><option value="complete">已有完整简历</option><option value="transition">从运营转型 AI 产品</option><option value="multi">同时申请三个方向</option><option value="single">只修改一个 JD 的简历</option></select><h3 id="next-title">上传简历，建立求职档案。</h3><p id="next-copy">从已有简历或一段经历开始，核对事实与来源，再决定申请什么岗位。</p><a id="next-action" class="button button-primary" href="#use-title">查看建档方式</a><button id="use-profile" class="role-choice" type="button">体验已有合成档案</button><div class="guide-grid"><div><h3>当前目标与档案</h3><p id="target"></p><p id="profile-state"></p></div><div><h3>岗位与材料</h3><p id="recent-jobs"></p><p id="unfinished"></p></div></div><p class="demo-footnote">全部为预设合成示例，不运行真实匹配算法。实际工作台支持四级证据判断、全部候选证据与选择理由、项目优先级和独立材料版本。</p></details><details class="scenario-guide"><summary>本地工作台还可以做什么？</summary><p>导入 PDF、Word、Markdown 或文字后，核对原文、个人贡献与冲突；没有简历也可以先在 Codex 中记录一段经历。作品集与网站草稿可以按需跳过。</p><p>申请按待研究、待准备、可人工审核、已投递、面试中、已结束记录。材料生成不会视为已投递，必须有真实回执或本人确认。</p><p>BOSS 离线筛选区分符合已知条件、待核实、明确排除和重复记录；离线数据无法证明岗位仍在招聘。练习和面试复盘不会自动成为职业事实。</p></details></div>
     </section>
   </main>
   <footer class="footer wrap"><span>Career Studio · 把经历变成可核验的机会材料。</span><span>公开演示页使用合成内容 · <a href="https://github.com/roye102520-a11y/job-search-workflow">查看 GitHub Skill</a></span></footer>

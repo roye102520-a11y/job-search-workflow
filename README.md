@@ -17,6 +17,12 @@ python3 scripts/resume_server.py --case /absolute/path/to/job-search-cases/examp
 
 在浏览器打开 `http://127.0.0.1:8765`。工作台只绑定本机，材料默认写到案例的 `generated/`；不会上传资料、发送邮件或提交网申。
 
+在 `/studio` 可粘贴带“职位描述/职位要求”编号的 JD，点击“分析逐项符合度与 7 天补齐计划”，查看每条要求的相关证据、缺口、补齐动作和可交付物。案例中保存 `target-jd.md` 时，可一键载入当前目标岗位。分析是证据初筛，不是录用概率；练习作品不能表述为真实业务项目成果。
+
+### 批量选岗与跟进
+
+在「投递进度 → 批量选岗与跟进」打开 `/strategy`：导入多份完整 JD，查看证据覆盖排序、必需项待核实/不满足、重复链接和截止日期提示；按跨岗位缺口安排补证据与练习，并从确认投递事件生成静默 10 天后的跟进草稿。报告保存在案例 `generated/`，草稿不会自动发送。输入格式、评分边界与 CLI 见 [求职策略台](references/search-strategy.md)。
+
 ### 手机与跨平台使用
 
 同一 Wi-Fi 下可让手机访问本机工作台（只在可信网络使用）：
@@ -46,7 +52,7 @@ export DEEPSEEK_MODEL='deepseek-chat'   # 可选
 
 工作台“投递 → 简历匹配推荐”中的“生成摘要”按钮只发送已选择偏好、推荐岗位标题和页面已展示的理由；没有 Key 时本地规则推荐仍可用。摘要是辅助说明，岗位官网链接、硬门槛和投递状态仍需核验。
 
-首页包含总览图表、素材与作品集、JD 简历、投递看板、面试复盘和个人网站。导入 PDF/Word 后保留原文摘录与来源；综合总结由 Codex 执行。可按完整事实库或某份 JD 简历生成同款作品集网站，本地保存复盘和自评。官网社招通过 Codex 浏览器与投递记录脚本执行，页面不提供无人值守投递服务。详见 [工作台说明](references/career-workspace.md)。
+工作台已按用户确认恢复 `48ca8e4` 的视觉与布局，导航为总览、素材与作品集、JD 简历、投递进度、面试复盘、个人网站；岗位偏好在投递进度中设置。首页主按钮仍按档案状态引导上传、复核或分析岗位，目标、待确认事实与最近记录可在总览展开查看。JD 编辑器恢复左右两栏，下方保留 V2 要求、证据与选材审阅区。导入 PDF/Word 后保留原文摘录与来源；综合总结由 Codex 执行。可按完整事实库或某份 JD 简历生成同款作品集网站，本地保存复盘和自评。官网社招通过 Codex 浏览器与投递记录脚本执行，页面不提供无人值守投递服务。详见 [工作台说明](references/career-workspace.md) 和 [UI 恢复记录](docs/ui-restoration/README.md)。
 
 投递页现在支持 [BOSS 岗位辅助筛选](references/boss-assisted.md)：导入自己持有的岗位 JSON/CSV 与屏蔽公司名单，按薪资、规模、双休等条件审阅，并把核对过的完整 JD 送进简历生成器。这里没有安装 Boss-Plus 私有脚本；筛选结果和招呼语草稿不会自动在 BOSS 开聊或投递。
 
@@ -73,3 +79,27 @@ python3 -m unittest discover -s tests -v
 测试覆盖本地投递记录、PDF 材料生成、四类 JD 路由、负向岗位拦截、回环页面的跨站/文件隔离，以及恢复和去重逻辑。所有测试均使用临时或合成数据。
 
 详细的数据约定、自动生成和外部执行边界见 [SKILL.md](SKILL.md)。
+
+## Career Studio V2
+
+本轮审计、匹配规则、兼容方案和真实测试记录在 [docs/career-studio-v2](docs/career-studio-v2/01-PRODUCT-AUDIT.md)。公开页面仍只使用合成数据，本地能力与 Skill 外部执行能力分别记录。没有生产部署或真实投递。
+
+安全体验（临时合成档案，退出即清理）：
+
+```sh
+python3 scripts/demo_server.py --port 8875
+```
+
+打开 `http://127.0.0.1:8875`；`/demo` 为相同静态公开预览。首次无档案场景可加 `--empty`。真实案例启动仍沿用原命令，本轮没有修改任何真实案例。
+
+岗位分析新增只读 `/api/selection`，展示主次方向、要求四状态、全部候选与未选原因。可调整 `project_priorities` 和 `selection_budget`，再生成独立版本。相同输入与事实复用既有文件；源文件或缓存内容变化会失效。`partial` 不等于满足，不能用于解除必需项阻断。生成材料保持 `preparing`。
+
+浏览器测试使用 Playwright 和临时合成案例：
+
+```sh
+npm install
+npx playwright install chromium
+PYTHON_BIN=python3 npm run test:e2e
+```
+
+已有浏览器可用 `BROWSER_EXECUTABLE` 指定路径，避免重复下载。Python 需满足 requirements.txt，PDF 字体可通过 `RESUME_FONT_PATH` 指定；macOS 可使用已有 Arial Unicode。E2E 输出真实 PNG、JSON 和本地服务日志到 docs/career-studio-v2/evidence；本轮截图不是线上部署结果。
