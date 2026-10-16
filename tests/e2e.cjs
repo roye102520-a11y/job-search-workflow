@@ -102,6 +102,19 @@ async function noOverflow(page){assert(await page.evaluate(()=>document.document
       await page.goto(base+'/#applications');await page.locator('#application-board .board-column').first().waitFor();assert.equal(await page.locator('#application-board .board-column').count(),6);
       assert.equal(await page.locator('#confirmed-count').innerText(),'0');
     });
+    await check('local positioning cites evidence and daily discovery stays bounded',async()=>{
+      await page.goto(base+'/#applications');
+      await page.locator('#career-positioning-panel summary').click();
+      await page.locator('#career-positioning-status').filter({hasText:'未向外部模型发送'}).waitFor();
+      assert((await page.locator('#career-positioning').innerText()).includes('AI 运营'));
+      assert((await page.locator('#career-positioning').innerText()).includes('career-evidence-bank.md'));
+      await page.route('**/api/opportunities/discover-daily',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+        mode:'discovery-only',results_count:1,sources:[{tenant:'synthetic'}],scheduler:'not_configured',
+        external_actions:{emails_sent:0,applications_submitted:0}})}));
+      await page.getByRole('button',{name:'搜索官方岗位（最多 10）'}).click();
+      await page.locator('#discovery-run-status').filter({hasText:'保存 1 个岗位'}).waitFor();
+      assert((await page.locator('#discovery-run-status').innerText()).includes('申请提交 0'));
+    });
     await check('official opportunity panel filters internship, explains eligibility and opens JD Studio',async()=>{
       const syntheticJD='Paid internship. Responsibilities: review AI content quality and label examples. Requirements: strong written communication. The role includes mentorship and training.';
       await page.route('**/api/opportunities',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({jobs:[{

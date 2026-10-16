@@ -23,9 +23,9 @@ from jd_requirements import assess
 
 MAX_BYTES = 2 * 1024 * 1024
 SCORE_LABEL = '规则识别的证据覆盖分，不是录取概率；所有结果均需人工复核'
-MATCH_RULES_VERSION = '2026-10-16.2'
+MATCH_RULES_VERSION = '2026-10-17.2'
 # Exact tenants, never a wildcard such as *.myworkdayjobs.com.
-LEVER = {'weloglobal': 'Welo Global', 'getwingapp': 'Wing Assistant', 'veeva': 'Veeva Systems'}
+LEVER = {'weloglobal': 'Welo Global', 'getwingapp': 'Wing Assistant', 'veeva': 'Veeva Systems', 'rws': 'RWS Group'}
 WORKDAY = {'cerence.wd5.myworkdayjobs.com': ('cerence', 'Cerence', 'Cerence'),
            'sanofi.wd3.myworkdayjobs.com': ('sanofi', 'SanofiCareers', 'Sanofi'),
            'lighting.wd3.myworkdayjobs.com': ('lighting', 'jobs-and-careers', 'Signify')}
@@ -277,8 +277,8 @@ def compensation_details(job, unpaid=False):
     jd = str(job.get('jd') or '')
     source_value = job.get('compensation')
     lines = [str(line).strip() for line in jd.splitlines() if str(line).strip()]
-    pay_lines = [line for line in lines if re.search(r'薪资|薪酬|工资|津贴|补贴|salary|compensation|stipend|pay range|paid internship|unpaid internship|unpaid intern', line, re.I)
-                 or re.search(r'(?:CNY|RMB|USD|EUR|GBP|¥|￥)\s*\d|\d+(?:\.\d+)?\s*(?:k|万)\s*(?:-|~|至|–)', line, re.I)]
+    pay_lines = [line for line in lines if re.search(r'薪资|薪酬|工资|津贴|补贴|salary|compensation|stipend|pay\s*(?:range)?\s*:|paid internship|unpaid internship|unpaid intern', line, re.I)
+                 or re.search(r'(?:CNY|RMB|USD|EUR|GBP|¥|￥)\s*\d|\d+(?:\.\d+)?\s*(?:CNY|RMB|USD|EUR|GBP|k|万)(?:\s*/\s*(?:hour|hr|month|year|小时|月|年))?|\$\s*\d|\d+(?:\.\d+)?\s*(?:k|万)\s*(?:-|~|至|–)', line, re.I)]
     if isinstance(source_value, str):
         published = source_value.strip()
     elif isinstance(source_value, (int, float)):
@@ -299,7 +299,8 @@ def compensation_details(job, unpaid=False):
     published = published or (pay_lines[0][:240] if pay_lines else '')
     if unpaid:
         return {'paid_status': 'unpaid', 'published': published or '无薪（来源明确说明）'}
-    paid = bool(re.search(r'\bpaid\s+(?:internship|intern|position|role)\b|\b(?:internship|intern)\b.{0,45}\bpaid\b|\b(?:salary|compensation|stipend|pay range)\b|薪资|薪酬|工资|实习津贴|提供薪酬|有薪', jd, re.I))
+    paid = bool(re.search(r'\bpaid\s+(?:internship|intern|position|role)\b|\b(?:internship|intern)\b.{0,45}\bpaid\b|\b(?:salary|compensation|stipend|pay range)\b|薪资|薪酬|工资|实习津贴|提供薪酬|有薪', jd, re.I)
+                or any(re.search(r'\bpay\s*(?:range)?\s*:\s*[^\n]*\d|(?:USD|EUR|GBP)\s*\d|\d+(?:\.\d+)?\s*(?:USD|EUR|GBP)\s*/\s*(?:hour|hr|month|year)|\$\s*\d', line, re.I) for line in pay_lines))
     if not paid and ((isinstance(source_value, str) and source_value.strip()) or isinstance(source_value, (int, float, dict))):
         paid = True
     return {'paid_status': 'paid' if paid else 'unknown',
@@ -407,13 +408,13 @@ def matching(case, job):
     unpaid = bool(re.search(r'\bunpaid\s+(?:internship|intern|position|role|job|opportunity)\b|\b(?:internship|intern|position|role|job)\b.{0,45}\bunpaid\b|without pay|uncompensated internship|unpaid\s+work|无薪实习|无薪岗位|不提供薪资', jd, re.I))
     if unpaid:
         flags.append('JD 明确无薪；薪资低于偏好，默认降级，是否破例由本人决定。')
-    remote = bool(re.search(r'\bremote\b|远程', job['location'] + ' ' + str(job['employment_type']) + ' ' + jd, re.I))
+    remote = bool(re.search(r'\bremote\b|\bwork from home\b|\bwork-from-home\b|远程', job['location'] + ' ' + str(job['employment_type']) + ' ' + jd, re.I))
     china_location = bool(re.search(r'Shanghai|Suzhou|上海|苏州|\bChina\b|中国', job['location'], re.I))
     preferred_city = bool(re.search(r'Shanghai|Suzhou|上海|苏州', job['location'], re.I))
     china_remote = remote and bool(re.search(r'\bChina\b|中国', job['location'] + ' ' + jd, re.I))
     if remote:
         flags.append('需确认远程雇佣国家、合同主体及对应工作许可。')
-    if not china_location:
+    if not china_location and not china_remote:
         flags.append('地点尚未证明符合上海、苏州或中国远程范围。')
     elif not preferred_city and not china_remote:
         flags.append('地点在中国但不属于当前优先的上海、苏州或中国远程。')
@@ -455,6 +456,9 @@ def matching(case, job):
     category = employment_category(job)
     work_mode = work_arrangement(job)
     compensation = compensation_details(job, unpaid=unpaid)
+    if salary.get('status') == 'unknown' and compensation.get('paid_status') == 'paid' and compensation.get('published') not in {'', '未知（来源未披露）'}:
+        salary['published'] = compensation['published']
+        salary['reason'] = '官方披露原文已记录；币种或计价周期与个人薪资底线不同/未结构化，不进行换算或默认判定符合。'
     internship_status = internship_qualification(job, requirements, source_status, category)
     growth = internship_growth(job, category)
     strategy = pref.get('job_search_strategy') if isinstance(pref.get('job_search_strategy'), dict) else {}
@@ -501,7 +505,7 @@ def matching(case, job):
     elif unpaid:
         grade = 'C'
         grade_reasons.extend(flags)
-    elif error or blockers or remote or not china_location or salary['status'] != 'supported' or internship_status['status'] == 'needs_confirmation' or (category == 'internship' and growth['status'] != 'supported'):
+    elif error or blockers or remote or (not china_location and not china_remote) or salary['status'] != 'supported' or internship_status['status'] == 'needs_confirmation' or (category == 'internship' and growth['status'] != 'supported'):
         grade = 'B'
         grade_reasons.extend(flags)
     elif (not preferred_city and not china_remote) or target_priority is None or not direct_refs or not evidence_kinds.intersection({'work', 'project'}):
@@ -676,7 +680,7 @@ def studio_job(case, key):
 
 
 def discover(case, tenant, limit=10, transport=None):
-    """Public Lever feed; deliberate bounded scan, no background scheduler."""
+    """Search one reviewed public Lever feed using the case's private targets."""
     if tenant not in LEVER or type(limit) is not int or not 1 <= limit <= 10:
         raise ValueError('请选择支持的 ATS 租户，每轮最多 10 个岗位')
     get = transport or fetch
@@ -685,16 +689,50 @@ def discover(case, tenant, limit=10, transport=None):
         raise ValueError('官方职位列表读取失败')
     jobs = json.loads(body)
     if not isinstance(jobs, list): raise ValueError('官方职位列表格式有误')
-    patterns = r'AI|LLM|evaluation|content|data|product|research|评测|产品|内容'
     pref = read_json(case, 'search-preferences.json', {})
+    if not isinstance(pref, dict): pref = {}
     excluded = {str(c).casefold() for c in pref.get('excluded_companies', [])}
-    candidates = [j for j in jobs if isinstance(j, dict) and re.search(patterns, j.get('text', ''), re.I)
-                  and re.search(r'China|Shanghai|Suzhou|上海|苏州|中国', j.get('categories', {}).get('location', ''), re.I)
-                  and LEVER[tenant].casefold() not in excluded
-                  and not re.search(r'senior|director|head of|高级|总监', j.get('text', ''), re.I)]
+    candidates = []
+    senior_title = re.compile(r'\b(?:senior|staff|principal|lead|director|head of)\b|高级|资深|总监', re.I)
+    early_career = re.compile(r'\b(?:intern|internship|graduate|trainee|junior|entry[- ]level|associate|assistant)\b|实习|初级|助理|专员|毕业生|管培', re.I)
+    for item in jobs:
+        if not isinstance(item, dict): continue
+        categories = item.get('categories') if isinstance(item.get('categories'), dict) else {}
+        title = str(item.get('text') or '').strip()
+        location = str(categories.get('location') or item.get('location') or '').strip()
+        description = str(item.get('descriptionPlain') or item.get('description') or '')
+        searchable = title + '\n' + description
+        if not item.get('hostedUrl') or not title or LEVER[tenant].casefold() in excluded:
+            continue
+        if senior_title.search(title):
+            continue
+        city_or_country = bool(re.search(r'Shanghai|Suzhou|上海|苏州|China|中国', location, re.I))
+        remote_in_china = (bool(re.search(r'remote|远程|work from home|居家办公', location + '\n' + description, re.I))
+                           and bool(re.search(r'China|中国', location + '\n' + description, re.I)))
+        # A remote role may be in scope even when its listing's location field
+        # is an office city; require an explicit China remote statement in the
+        # source. Generic remote is not enough for legal-employment screening.
+        if not city_or_country and not remote_in_china:
+            continue
+        if re.search(r'remote|远程|work from home|居家办公', location, re.I) and not re.search(r'China|中国', location + '\n' + description, re.I):
+            continue
+        priority, _, _ = target_alignment({'title': title, 'jd': searchable}, pref)
+        if not priority:
+            evaluator = re.search(r'AI Training Contributor|AI Trainer|Search Engine Evaluator|Search Quality Rater|AI Data Annotation', searchable, re.I)
+            if evaluator:
+                priority = 'P0'
+        if not priority and re.search(r'\b(?:associate consultant|implementation consultant|implementation support associate)\b', title, re.I) and re.search(r'implementation|software|cloud|SaaS|customer|客户', description, re.I):
+            priority = 'P1'
+        if not priority:
+            continue
+        commitment = str(categories.get('commitment') or item.get('employment_type') or '')
+        candidates.append(({'P0': 0, 'P1': 1, 'P2': 2}.get(priority, 9), 0 if early_career.search(title + ' ' + commitment) else 1,
+                           title.casefold(), item))
+    candidates.sort(key=lambda row: row[:3])
     # Import performs a second live read, not a verification of feed snippets.
-    return {'results': [import_url(case, {'url': j['hostedUrl']}, get) for j in candidates[:limit]],
-            'mode': 'discovery-only', 'note': '仅按已支持的公开 ATS 列表检索；未覆盖全部外企官网'}
+    imported = [import_url(case, {'url': item['hostedUrl']}, get) for _, _, _, item in candidates[:limit]]
+    return {'results': imported, 'mode': 'discovery-only',
+            'note': '按当前案例岗位方向与地点偏好排序；资格、薪资、工作许可和官网申请状态仍逐岗核验。仅覆盖已支持的公开 Lever 租户。'}
 
 
 def main():

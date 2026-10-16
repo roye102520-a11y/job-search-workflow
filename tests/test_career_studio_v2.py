@@ -137,6 +137,11 @@ class V2Tests(unittest.TestCase):
     def test_exact_repeat_reuses_files_and_new_priority_creates_version(self):
         before = (self.case / 'resume-evidence.json').read_bytes()
         first = pipeline.generate(self.case, self.request())
+        email_draft = (self.case / first['files']['email']).read_text(encoding='utf-8')
+        self.assertIn(self.data['person']['email'], email_draft)
+        self.assertIn(self.data['person']['phone'], email_draft)
+        self.assertIn(self.data['person']['portfolio'], email_draft)
+        self.assertIn('不发送', email_draft)
         again = pipeline.generate(self.case, self.request())
         self.assertTrue(again['reused'])
         self.assertEqual(first['output_dir'], again['output_dir'])

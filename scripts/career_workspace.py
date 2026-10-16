@@ -151,6 +151,28 @@ def snapshot(case):
     if tracker.is_file():
         with tracker.open(encoding='utf-8-sig', newline='') as handle:
             applications = list(csv.DictReader(handle))
+    # Join read-only detail from the existing Manifest so the board can show
+    # which local resume version and channel belong to a tracker row. The CSV,
+    # event log, receipts, and application state remain the source of truth.
+    try:
+        import job_data
+        manifests = {item.get('job_key'): item for _, item in job_data.manifests(case)}
+    except (OSError, ValueError, TypeError):
+        manifests = {}
+    for row in applications:
+        manifest = manifests.get(row.get('job_key'), {})
+        for key in ('role_family', 'resume_variant', 'resume_path', 'email_path', 'cover_letter_path', 'channel', 'next_action', 'execution_status', 'sync_status'):
+            if not row.get(key) and manifest.get(key):
+                row[key] = manifest[key]
+        if not row.get('submitted_at') and manifest.get('submitted_at'):
+            row['submitted_at'] = manifest['submitted_at']
+        if not row.get('receipt_path') and manifest.get('receipt_path'):
+            row['receipt_path'] = manifest['receipt_path']
+        prepared = manifest.get('prepared_materials', [])
+        row['prepared_materials'] = [
+            {key: item.get(key) for key in ('language', 'output_dir', 'files', 'family', 'status', 'prepared_at', 'reused')}
+            for item in prepared if isinstance(item, dict)
+        ] if isinstance(prepared, list) else []
     keys = [r.get('job_key') for r in applications]
     if len(keys) != len(set(keys)):
         raise ValueError('投递记录存在重复编号，请先修复再展示统计')

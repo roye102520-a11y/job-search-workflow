@@ -50,7 +50,7 @@ function renderAssets(data){
   const site=clear('website-link');if(data.website)site.append(externalLink('打开当前个人网站 ↗',data.website));else site.append(node('p','档案尚未记录个人网站。','caption'));
 }
 function renderHistory(data){const box=clear('history');const items=data.history.filter(h=>$('include-tests').checked||!h.synthetic);items.forEach(item=>{const row=node('article',undefined,'history-item');const info=node('div');info.append(node('h3',item.title),node('p',item.company+' · '+(item.label||'方向待确认')+' · '+item.blockers+' 项必需条件待核实'),node('p',item.id+(item.stale?' · 事实已更新，需重新生成':'')+(item.synthetic?' · 合成验收':''),'caption'));const links=node('div',undefined,'links');for(const [key,label] of [['pdf','PDF ↗'],['match','匹配报告'],['email','邮件草稿'],['review','复核项']])if(item.files[key])links.append(link(label,localURL('/files/',item.files[key])));row.append(info,links);box.append(row);});if(!items.length)box.append(node('p','暂无此范围的生成材料。粘贴 JD 后，每次都会保留独立版本。','empty-state'));}
-function renderApplications(data){const board=clear('application-board');const groups=[['待研究',['discovered']],['待准备',['shortlisted','preparing']],['可人工审核',['ready']],['已投递',['submitted','assessment']],['面试中',['interview','offer']],['已结束',['rejected','withdrawn','closed']]];for(const [label,statuses] of groups){const items=data.applications.filter(a=>statuses.includes(a.status));const col=node('article',undefined,'board-column');const heading=node('h3',label);heading.append(node('span',String(items.length),'caption'));col.append(heading);items.forEach(item=>{const card=node('div',undefined,'job-card');card.append(node('h4',item.company),node('p',item.role),node('p',stages[item.status]||item.status),node('p','执行：'+(item.execution_status||'idle')+' · 同步：'+(item.sync_status||'not_requested')));if(item.next_action)card.append(node('p',item.next_action));if(item.url)card.append(externalLink('官网岗位 ↗',item.url));col.append(card);});if(!items.length)col.append(node('p','暂无记录','caption'));board.append(col);}
+function renderApplications(data){const board=clear('application-board');const groups=[['待研究',['discovered']],['待准备',['shortlisted','preparing']],['可人工审核',['ready']],['已投递',['submitted','assessment']],['面试中',['interview','offer']],['已结束',['rejected','withdrawn','closed']]];for(const [label,statuses] of groups){const items=data.applications.filter(a=>statuses.includes(a.status));const col=node('article',undefined,'board-column');const heading=node('h3',label);heading.append(node('span',String(items.length),'caption'));col.append(heading);items.forEach(item=>{const card=node('div',undefined,'job-card');card.append(node('h4',item.company),node('p',item.role),node('p',stages[item.status]||item.status),node('p','执行：'+(item.execution_status||'idle')+' · 同步：'+(item.sync_status||'not_requested')));if(item.resume_variant)card.append(node('p','专属简历版本：'+item.resume_variant));if(item.resume_path)card.append(link('查看简历 ↗',localURL('/files/',item.resume_path)));if(item.email_path){card.append(node('p','求职邮件草稿尚未发送。'));card.append(link('本地查看邮件草稿 ↗',localURL('/files/',item.email_path)));}if(item.channel||item.submitted_at)card.append(node('p','渠道：'+(item.channel||'未知')+' · 提交时间：'+(item.submitted_at||'未知')));if(item.receipt_path)card.append(node('p','回执：已记录（'+item.receipt_path+'）'));if(item.next_action)card.append(node('p',item.next_action));if(item.url)card.append(externalLink('官网岗位 ↗',item.url));col.append(card);});if(!items.length)col.append(node('p','暂无记录','caption'));board.append(col);}
   $('outcome-note').textContent=data.stats.submitted?'已有 '+data.stats.submitted+' 个岗位包含确认提交事件；详细分组与观察期请打开报告。':'当前没有带确认提交事件的真实申请，尚不能判断哪个方向或版本更有效。';const report=clear('direction-report');if(data.documents.includes('direction-review.md'))report.append(resourceItem('direction-review.md'));
   const picker=$('review-job'),prior=picker.value;picker.replaceChildren(new Option('暂不关联',''));data.applications.forEach(a=>picker.add(new Option(a.company+' · '+a.role,a.job_key)));picker.value=prior;
 }
@@ -68,6 +68,7 @@ function renderOpportunityJobs(){
   $('opportunity-status').textContent=opportunityJobs.length?'共 '+opportunityJobs.length+' 条本地岗位记录；核验状态与求职状态分开显示。':'暂无通过本地岗位发现流程保存的岗位。导入官方 JD 后会在这里显示；静态推荐不作为已核验岗位。';
   rows.forEach(job=>{
     const match=job.match||{},verification=job.verification||{},card=node('article',undefined,'recommendation-card');
+    const application=(workspace?.applications||[]).find(item=>item.job_key===job.job_key)||{};
     const head=node('div',undefined,'recommendation-head'),score=node('div',undefined,'recommendation-score');
     score.append(node('strong',match.grade||'U'),node('span','匹配级别'));
     const title=node('div');title.append(node('h3',job.title||'岗位名称待核实'),node('p',(job.company||'公司待核实')+' · '+(job.location||'地点未知')));
@@ -84,6 +85,15 @@ function renderOpportunityJobs(){
     card.append(node('p','工作模式：'+(mode.label||'未知')+' · '+(mode.reason||'')+' · 发布时间：'+(job.posted_date_text||'未知')));
     const verified=verification.status==='verified_open'&&verification.verified_at?new Date(verification.verified_at).toLocaleString('zh-CN'):'未知（当前未核验）';
     card.append(node('p','官网状态：'+(verification.status==='verified_open'?'已核验可申请':verification.status==='closed'?'官方已关闭':verification.status==='stale'?'核验已过期':'待核实')+' · 最后核验：'+verified,'caption'));
+    const executionLabels={idle:'未执行外部投递',filling:'操作中',blocked:'已阻止',submission_unknown:'提交结果未知'};
+    card.append(node('p','Career Studio 状态：'+(stages[application.status]||'已发现')+' · '+(executionLabels[application.execution_status]||'未执行外部投递'),'caption'));
+    if(application.resume_variant)card.append(node('p','专属简历：'+application.resume_variant+(application.resume_path?' · ':'')+(application.resume_path?'':'暂未生成')));
+    else if(application.prepared_materials?.length)card.append(node('p','已生成本地审阅材料：'+application.prepared_materials.map(item=>item.language==='en'?'英文':'中文').join('、')));
+    if(application.email_path){const email=link('查看本地求职邮件草稿 ↗',localURL('/files/',application.email_path));card.append(email,node('p','邮件为审阅草稿，尚未发送。','caption'));}
+    if(application.channel||application.submitted_at||application.receipt_path){
+      card.append(node('p','投递渠道：'+(application.channel||'未知')+' · 提交时间：'+(application.submitted_at||'未知')+' · 回执：'+(application.receipt_path?'已记录':'未知')));
+    }
+    if(application.resume_path)card.append(link('查看当前专属简历 ↗',localURL('/files/',application.resume_path)));
     const reasons=node('details');reasons.append(node('summary','查看匹配理由、条件证据与缺口'));
     const reasonBody=node('div');
     (match.grade_reasons||[]).forEach(text=>reasonBody.append(node('p','结论：'+text)));
@@ -99,7 +109,21 @@ function renderOpportunityJobs(){
     if(job.url)actions.append(externalLink('打开官方 JD ↗',job.url));
     const studio=node('button',typeof job.jd==='string'&&job.jd.length>=40?'送入 JD Studio':'JD 不完整，暂不能导入','secondary');studio.type='button';studio.disabled=!(typeof job.jd==='string'&&job.jd.length>=40);
     studio.addEventListener('click',()=>{sessionStorage.setItem('career-studio-jd-prefill',JSON.stringify({jd:job.jd,title:job.title||'',company:job.company||'',url:job.url||'',auto_generate:false}));location.assign('/studio');});
-    actions.append(studio);card.append(actions);
+    actions.append(studio);
+    const qualificationStatus=qualification.status||'needs_confirmation';
+    const canPrepare=verification.status==='verified_open'&&['A','B'].includes(match.grade)
+      &&(category!=='internship'||qualificationStatus==='eligible')
+      &&pay.paid_status!=='unpaid'&&typeof job.jd==='string'&&job.jd.trim().length>=40
+      &&!['submitted','assessment','interview','offer','rejected','withdrawn','closed'].includes(application.status);
+    const prepare=node(application.resume_variant?'重新生成中英审阅材料':'生成中英审阅材料','secondary');prepare.type='button';prepare.disabled=!canPrepare;
+    prepare.title=canPrepare?'仅在本地生成简历与邮件草稿；不会发送或提交。':'需完整 JD、当前官网核验、A/B 级匹配、符合的毕业资格及非无薪条件。';
+    prepare.addEventListener('click',async()=>{
+      prepare.disabled=true;prepare.textContent='正在生成本地审阅材料…';
+      try{const result=await api('/api/opportunities/prepare',{job_keys:[job.job_key]});const first=result.jobs?.[0];$('discovery-run-status').textContent=first?'已为「'+first.company+' · '+first.title+'」生成本地审阅材料；未发送邮件、未提交申请。':'材料准备完成；未发送邮件、未提交申请。';await refresh();}
+      catch(error){$('discovery-run-status').textContent='材料准备未完成：'+error.message;}
+      finally{prepare.disabled=!canPrepare;prepare.textContent=application.resume_variant?'重新生成中英审阅材料':'生成中英审阅材料';}
+    });
+    actions.append(prepare);card.append(actions);
     const needsInquiry=category==='internship'&&qualification.status!=='ineligible'&&(qualification.status==='needs_confirmation'||pay.paid_status==='unknown'||(match.internship_growth||{}).status==='unknown');
     if(needsInquiry){
       const context=qualification.inquiry_context||'已完成本科学业（毕业年限可补充）';
@@ -130,6 +154,30 @@ async function loadOpportunityJobs(){
   try{const result=await api('/api/opportunities');opportunityJobs=Array.isArray(result.jobs)?result.jobs:[];renderOpportunityJobs();}
   catch(error){opportunityJobs=[];renderOpportunityJobs();$('opportunity-status').textContent='本地官方岗位记录暂不可用：'+error.message;}
 }
+$('career-positioning-panel').addEventListener('toggle',async event=>{
+  const panel=event.currentTarget;
+  if(!panel.open||panel.dataset.loaded==='true')return;
+  const status=$('career-positioning-status'),list=clear('career-positioning');status.textContent='正在读取已校验的本地事实…';
+  try{
+    const report=await api('/api/career/positioning');panel.dataset.loaded='true';
+    status.textContent=report.model_disclosure+' 共列出 '+report.roles.length+' 类岗位。';
+    if(report.withheld_project_note)list.append(node('p',report.withheld_project_note+'项目证据未修改。','caption'));
+    report.roles.forEach((role,index)=>{
+      const section=node('details',undefined,'resource-item'),title=node('summary',(index+1)+' · '+role.title_zh+' / '+role.title_en);
+      section.append(title,node('p','优先级 '+role.priority+' · 证据 '+role.evidence_strength+'（直接 '+role.direct_work_evidence_count+' 条 / 可迁移 '+role.transferable_evidence_count+' 条）· 难度：'+role.difficulty),node('p','适合原因：'+role.why));
+      const evidence=node('div');evidence.append(node('strong','可追溯经历证据'));
+      if(role.evidence.length){const ul=node('ul');role.evidence.forEach(item=>ul.append(node('li',item.excerpt+'（'+item.source_ref+' · '+item.bullet_id+'）')));evidence.append(ul);}else evidence.append(node('p','暂无可安全引用的事实。'));
+      section.append(evidence);const gaps=node('div');gaps.append(node('strong','待补能力 / 核实项'));const ul=node('ul');role.gaps.forEach(item=>ul.append(node('li',item)));gaps.append(ul);section.append(gaps);list.append(section);
+    });
+    (report.limitations||[]).forEach(item=>list.append(node('p',item,'caption')));
+  }catch(error){status.textContent='本地职业定位暂不可用：'+error.message;}
+});
+$('discover-daily-button').addEventListener('click',async()=>{
+  const button=$('discover-daily-button'),status=$('discovery-run-status');button.disabled=true;status.textContent='正在读取已支持的官方招聘源；本轮上限 10 个，只发现和核验，不会投递。';
+  try{const result=await api('/api/opportunities/discover-daily',{limit:10});await refresh();status.textContent='本轮读取 '+result.sources.length+' 个 ATS 来源，保存 '+result.results_count+' 个岗位；邮件发送 0、申请提交 0。每日后台调度：'+(result.scheduler==='not_configured'?'尚未配置。':'已配置。')+' 覆盖范围仅限已接入来源。';}
+  catch(error){status.textContent='岗位发现未完成：'+error.message;}
+  finally{button.disabled=false;}
+});
 $('opportunity-type-filter').addEventListener('change',renderOpportunityJobs);
 function bossList(value){return String(value||'').split(/[\n,，;；]+/).map(item=>item.trim()).filter(Boolean);}
 function bossNumber(id){const value=$(id).value.trim();return value===''?null:Number(value);}
