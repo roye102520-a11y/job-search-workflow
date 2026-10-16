@@ -100,11 +100,11 @@ flowchart TD
 - 360/768/1024/1440px 检查未发现横向溢出；390px 检查跳过链接和键盘焦点。真实 Chromium 桌面模拟视口，不等于 iPhone/Android 真机。
 - 人工查看了本地桌面首页与移动 JD 表单截图，没有发现新增视觉变化。未逐像素人工查看全部弹窗和任意长度文本。
 - 原有 Service Worker 注册被 CSP 阻断，基线与当前都可复现；没有放松 CSP 来使测试通过。
-- **Vercel 线上页面未验收**：网页读取工具返回不可访问，浏览器标签操作超时。不能用本地 `/demo` 的通过结果替代线上部署。
+- **Vercel 线上另行验收**：网页读取工具与应用内浏览器最初失败；准备隔离 Chromium 后成功访问真实线上地址，6 项基础检查通过：HTTP 200、合成数据提示、本地功能指引、岗位示例切换、390px 无横向溢出、无未处理页面 JS 异常。已保存两张线上截图；不等于真实档案、邮箱或后台岗位发现已部署。
 
 证据：[像素对比](evidence/visual-comparison.json)、[基线浏览器结果](evidence/baseline/e2e-results.json)、[当前浏览器结果](evidence/current/e2e-results.json)。
 
-截图示例：[基线桌面](evidence/baseline/local-desktop.png) / [当前桌面](evidence/current/local-desktop.png)、[基线手机](evidence/baseline/local-mobile.png) / [当前手机](evidence/current/local-mobile.png)。
+截图示例：[基线桌面](evidence/baseline/local-desktop.png) / [当前桌面](evidence/current/local-desktop.png)、[基线手机](evidence/baseline/local-mobile.png) / [当前手机](evidence/current/local-mobile.png)。另有真实线上 [桌面](evidence/live-public-desktop.png) / [手机](evidence/live-public-mobile.png) 和 [6 项结果](evidence/live-public-results.json)。
 
 ## 6. 确认缺陷与复现步骤
 
@@ -231,7 +231,7 @@ flowchart TD
 | 视觉对比 | 20/20 对像素相同 | 相同 Chromium 与视口 |
 | 中英文材料对比 | 两种语言语义输出一致 | 合成正常岗位，Markdown/选材/PDF 文本/页数；PDF 元数据不作二进制等同要求 |
 | 真岗位网络检查 | 10 条，自动 6 个 verified_open、4 个 unknown | 证明读取时入口状态，不证明候选人资格或未来仍开放 |
-| Vercel 线上验收 | blocked | 工具不可访问/超时；没有线上截图 |
+| Vercel 线上静态演示 | 6 项基础检查通过 | 独立 Chromium 直连，桌面/手机截图；前两种访问工具失败，不用本地副本冒充线上 |
 | `git diff --check` | 通过 | 包括本轮代码和文档 |
 
 原始记录：[基线测试](evidence/baseline-unit-tests.txt)、[当前测试](evidence/current-unit-tests.txt)、[系统 Python](evidence/system-python-tests.txt)、[当前浏览器日志](evidence/current-browser-tests.txt)、[PDF 对比](evidence/pdf-regression.json)。

@@ -18,5 +18,9 @@
   "ui_integrated": false,
   "real_applications_changed": false,
   "known_rule_cache_bug": true,
-  "known_failures_are_not_passes": true
+  "known_failures_are_not_passes": true,
+  "public_static_preview": {
+    "passed": 6,
+    "backend_verified": false
+  }
 }
