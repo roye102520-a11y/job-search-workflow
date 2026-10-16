@@ -102,6 +102,30 @@ async function noOverflow(page){assert(await page.evaluate(()=>document.document
       await page.goto(base+'/#applications');await page.locator('#application-board .board-column').first().waitFor();assert.equal(await page.locator('#application-board .board-column').count(),6);
       assert.equal(await page.locator('#confirmed-count').innerText(),'0');
     });
+    await check('official opportunity panel filters internship, explains eligibility and opens JD Studio',async()=>{
+      const syntheticJD='Paid internship. Responsibilities: review AI content quality and label examples. Requirements: strong written communication. The role includes mentorship and training.';
+      await page.route('**/api/opportunities',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({jobs:[{
+        job_key:'opportunity-aaaaaaaaaaaaaaaaaaaa',company:'Synthetic Global',title:'AI Content Intern',url:'https://jobs.lever.co/weloglobal/11111111-1111-1111-1111-111111111111',
+        jd:syntheticJD,location:'Shanghai',employment_type:'Internship',posted_date_text:'未知',requisition_id:'SYN-01',
+        verification:{status:'verified_open',verified_at:'2026-10-16T00:00:00+00:00'},
+        match:{grade:'B',grade_reasons:['薪资范围待核实。'],warnings:['官方 JD 未说明是否接受已毕业人员；需向招聘方确认。'],hard_reasons:[],
+          target_priority:'P0',target_label:'AI Content Quality',employment_category:'internship',
+          internship_qualification:{status:'needs_confirmation',reason:'官方 JD 未说明是否接受已毕业、非在校人员；需向招聘方确认。',inquiry_context:'已完成本科学业（合成样例）'},
+          internship_growth:{status:'supported',reason:'JD 明确提到培训'},work_mode:{status:'onsite',label:'现场办公',reason:'来源明确写明上海现场办公。'},
+          posted_compensation:{paid_status:'paid',published:'有薪（具体金额未披露）'},salary:{floor_text:'示例薪资偏好',status:'unknown'},requirements:[]}
+      }],mode:'discovery-only'})}));
+      await page.goto(base+'/#applications');
+      const list=page.locator('#opportunity-list');await list.getByText('AI Content Intern').waitFor();
+      assert((await list.innerText()).includes('毕业资格待确认'));assert((await list.innerText()).includes('示例薪资偏好'));
+      await page.locator('#opportunity-type-filter').selectOption('full_time');assert.equal(await list.locator('.recommendation-card').count(),0);
+      await page.locator('#opportunity-type-filter').selectOption('internship');assert.equal(await list.locator('.recommendation-card').count(),1);
+      await list.locator('details summary').first().click();assert((await list.innerText()).includes('官方 JD 未说明是否接受已毕业'));
+      await list.getByRole('button',{name:'复制中文草稿'}).waitFor();assert((await list.innerText()).includes('不会发送'));
+      await screenshot(page,'internship-screen-desktop');await page.setViewportSize({width:390,height:844});await noOverflow(page);await screenshot(page,'internship-screen-mobile');await page.setViewportSize({width:1440,height:1000});
+      await list.getByRole('button',{name:'送入 JD Studio'}).click();await page.waitForURL(/\/studio$/);
+      assert.equal(await page.locator('#jd').inputValue(),syntheticJD);
+      await page.unroute('**/api/opportunities');
+    });
     await check('BOSS screening refreshes saved data and shows unknown verification',async()=>{
       const row={url:'https://www.zhipin.com/job_detail/Ab1234567890.html',company:'合成公司',title:'用户运营',city:'上海',salary:'10-15K·13薪',description:'岗位职责：维护用户关系，整理反馈与活动记录。任职要求：有沟通与文档整理能力。'};
       await page.locator('#boss-job-data').fill(JSON.stringify([row]));await page.getByRole('button',{name:'筛选岗位',exact:true}).click();

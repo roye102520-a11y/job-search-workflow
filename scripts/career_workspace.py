@@ -52,7 +52,11 @@ def save_preferences(case, request):
         if not isinstance(values, list) or any(not isinstance(x, str) or x not in allowed for x in values):
             raise ValueError('岗位偏好选项无效')
         clean[key] = list(dict.fromkeys(values))
+    raw_prior = read_json(case, 'search-preferences.json', {})
     prior = preferences(case)
+    # This form owns only the three checkbox groups. Keep salary, screening
+    # strategy, company lists and future private preferences intact.
+    clean = {**raw_prior, **clean}
     clean.update({'preferred_companies': prior.get('preferred_companies', []), 'excluded_companies': prior.get('excluded_companies', []), 'cities': clean['locations'], 'updated_at': datetime.now(timezone.utc).date().isoformat(), 'source': 'user_selected_in_workspace'})
     local_file(case, 'search-preferences.json').write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding='utf-8')
     return clean

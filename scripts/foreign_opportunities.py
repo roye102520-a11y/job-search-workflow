@@ -23,7 +23,7 @@ from jd_requirements import assess
 
 MAX_BYTES = 2 * 1024 * 1024
 SCORE_LABEL = '规则识别的证据覆盖分，不是录取概率；所有结果均需人工复核'
-MATCH_RULES_VERSION = '2026-10-16.1'
+MATCH_RULES_VERSION = '2026-10-16.2'
 # Exact tenants, never a wildcard such as *.myworkdayjobs.com.
 LEVER = {'weloglobal': 'Welo Global', 'getwingapp': 'Wing Assistant', 'veeva': 'Veeva Systems'}
 WORKDAY = {'cerence.wd5.myworkdayjobs.com': ('cerence', 'Cerence', 'Cerence'),
@@ -128,7 +128,8 @@ def parse(url, body):
         row.update(title=data.get('text', ''), requisition_id=data.get('id', origin['requisition_id']),
                    location=data.get('categories', {}).get('location', '未知'),
                    employment_type=data.get('categories', {}).get('commitment', '未知'),
-                   apply_url=data.get('applyUrl', ''))
+                   apply_url=data.get('applyUrl', ''),
+                   compensation=data.get('salaryRange') or data.get('salary') or data.get('compensation') or '')
         row['jd'] = '\n'.join([data.get('descriptionPlain', '')] +
                              [item.get('text', '') + '\n' + plain(item.get('content', '')) for item in data.get('lists', [])] +
                              [data.get('additionalPlain', '')]).replace('\\n', '\n').strip()
@@ -137,7 +138,8 @@ def parse(url, body):
         data = json.loads(body).get('jobPostingInfo', {})
         row.update(title=data.get('title', ''), jd=plain(data.get('jobDescription', '')),
                    requisition_id=data.get('jobReqId', ''), location=data.get('location', '未知'),
-                   employment_type=data.get('timeType', '未知'), posted_date_text=data.get('postedOn', '未知'))
+                   employment_type=data.get('timeType', '未知'), posted_date_text=data.get('postedOn', '未知'),
+                   compensation=data.get('compensation') or data.get('salaryRange') or data.get('salary') or '')
         posted = data.get('startDate', '')
         row['posted_date'] = posted if re.fullmatch(r'\d{4}-\d{2}-\d{2}', posted) else None
         row['accepting'] = data.get('canApply') is True
@@ -167,6 +169,7 @@ def parse(url, body):
                    location=', '.join(str(location[k]) for k in ('city', 'region', 'country') if location.get(k)) or '未知',
                    employment_type=employment.get('label') or employment.get('id') or '未知',
                    posted_date_text=data.get('releasedDate') or '未知',
+                   compensation=data.get('compensation') or data.get('salaryRange') or data.get('salary') or '',
                    apply_url=apply_url if isinstance(apply_url, str) else '')
         released = str(data.get('releasedDate') or '')
         row['posted_date'] = released[:10] if re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:T.*)?', released) else None
@@ -193,7 +196,7 @@ def parse(url, body):
             if isinstance(address, dict):
                 row['location'] = ', '.join(str(address[k]) for k in ('addressLocality', 'addressRegion', 'addressCountry') if address.get(k)) or '未知'
             row.update(title=data.get('title', ''), jd=plain(data.get('description', '')),
-                       employment_type=data.get('employmentType', '未知'))
+                       employment_type=data.get('employmentType', '未知'), compensation=data.get('baseSalary') or data.get('salary') or '')
             identifier = data.get('identifier', {})
             row['requisition_id'] = str(identifier.get('value', row['requisition_id'])) if isinstance(identifier, dict) else str(identifier)
             posted = data.get('datePosted', '')
@@ -235,6 +238,134 @@ def observe(url, transport=None):
     return row
 
 
+def employment_category(job):
+    """Normalize the stated contract type without inferring missing details."""
+    title = str(job.get('title') or '')
+    stated = str(job.get('employment_type') or '')
+    jd = str(job.get('jd') or '')
+    text = title + '\n' + stated + '\n' + jd
+    if re.search(r'\bintern(?:ship)?\b|实习(?:生|岗位)?', title + '\n' + stated, re.I) or re.search(r'\b(?:this|the) internship (?:role|position|program|programme)\b|实习(?:岗位|职位|项目)', jd, re.I):
+        return 'internship'
+    if re.search(r'\bgraduate\s+(?:program|programme|scheme)\b|\btrainee\b|\bmanagement\s+trainee\b|管培生|毕业生项目|校招生项目', text, re.I):
+        return 'graduate_program'
+    if re.search(r'\bfreelance(?:r)?\b|\bproject[- ]based\b|\bindependent contractor\b|项目制|项目合作|自由职业', title + '\n' + stated, re.I):
+        return 'project_freelance'
+    if re.search(r'\bfull[- ]time\b|\bpermanent\b|\bregular employee\b|全职|正式员工', stated, re.I):
+        return 'full_time'
+    return 'unknown'
+
+
+def work_arrangement(job):
+    location = str(job.get('location') or '')
+    jd = str(job.get('jd') or '')
+    location_remote = bool(re.search(r'\bremote\b|远程', location, re.I))
+    remote = location_remote or bool(re.search(r'\b(?:fully )?remote (?:role|position|work|working)\b|work remotely|work from home|远程办公', jd, re.I))
+    hybrid = bool(re.search(r'\bhybrid\b|混合办公', location + '\n' + jd, re.I))
+    onsite = bool(re.search(r'\bon[- ]site\b|\bin[- ]office\b|\boffice[- ]based\b|现场办公|办公室办公', location + '\n' + jd, re.I))
+    if hybrid:
+        return {'status': 'hybrid', 'label': '混合办公', 'reason': '来源明确写明 hybrid/混合办公。'}
+    if remote and onsite:
+        return {'status': 'unknown', 'label': '未知', 'reason': '岗位描述同时出现远程与现场信息，需确认实际工作模式。'}
+    if remote:
+        return {'status': 'remote', 'label': '远程', 'reason': '来源明确写明远程安排；远程雇佣国家仍需单独核实。'}
+    if onsite:
+        return {'status': 'onsite', 'label': '现场办公', 'reason': '来源明确写明现场办公。'}
+    return {'status': 'unknown', 'label': '未知', 'reason': '来源未明确说明工作模式。'}
+
+
+def compensation_details(job, unpaid=False):
+    jd = str(job.get('jd') or '')
+    source_value = job.get('compensation')
+    lines = [str(line).strip() for line in jd.splitlines() if str(line).strip()]
+    pay_lines = [line for line in lines if re.search(r'薪资|薪酬|工资|津贴|补贴|salary|compensation|stipend|pay range|paid internship|unpaid internship|unpaid intern', line, re.I)
+                 or re.search(r'(?:CNY|RMB|USD|EUR|GBP|¥|￥)\s*\d|\d+(?:\.\d+)?\s*(?:k|万)\s*(?:-|~|至|–)', line, re.I)]
+    if isinstance(source_value, str):
+        published = source_value.strip()
+    elif isinstance(source_value, (int, float)):
+        published = str(source_value)
+    elif isinstance(source_value, dict):
+        parts = []
+        def flatten(value, prefix=''):
+            if isinstance(value, dict):
+                for key, child in value.items(): flatten(child, (prefix + ' ' + str(key)).strip())
+            elif isinstance(value, list):
+                for child in value[:6]: flatten(child, prefix)
+            elif isinstance(value, (str, int, float)) and str(value).strip():
+                parts.append((prefix + ': ' + str(value)).strip(': '))
+        flatten(source_value)
+        published = ' · '.join(parts)[:240]
+    else:
+        published = ''
+    published = published or (pay_lines[0][:240] if pay_lines else '')
+    if unpaid:
+        return {'paid_status': 'unpaid', 'published': published or '无薪（来源明确说明）'}
+    paid = bool(re.search(r'\bpaid\s+(?:internship|intern|position|role)\b|\b(?:internship|intern)\b.{0,45}\bpaid\b|\b(?:salary|compensation|stipend|pay range)\b|薪资|薪酬|工资|实习津贴|提供薪酬|有薪', jd, re.I))
+    if not paid and ((isinstance(source_value, str) and source_value.strip()) or isinstance(source_value, (int, float, dict))):
+        paid = True
+    return {'paid_status': 'paid' if paid else 'unknown',
+            'published': published or '未知（来源未披露）'}
+
+
+def internship_qualification(job, requirements, source_status, category=None):
+    category = category or employment_category(job)
+    if category != 'internship':
+        return {'status': 'not_applicable', 'reason': '非 Internship 岗位。'}
+    if source_status != 'verified_open':
+        return {'status': 'needs_confirmation', 'reason': '尚未通过当前官方岗位页面核验资格条件。'}
+    text = str(job.get('title') or '') + '\n' + str(job.get('employment_type') or '') + '\n' + str(job.get('jd') or '')
+    graduation_rule = re.compile(r'在校|在读|学生|毕业|届|enroll|student|graduate|graduat|class of', re.I)
+    mismatches = [item for item in requirements if item.get('level') == 'required'
+                  and item.get('status') == 'not_met'
+                  and graduation_rule.search(str(item.get('text') or ''))]
+    if mismatches:
+        return {'status': 'ineligible', 'reason': '官方 JD 的在校/毕业年份条件与已确认的毕业背景冲突：' + '；'.join(item['text'] for item in mismatches),
+                'evidence': [item['text'] for item in mismatches]}
+    student_only = re.search(r'\bonly\s+(?:current\s+)?(?:university\s+)?students?\b|\bcurrent (?:university )?students? only\b|\bmust be (?:currently )?enrolled\b|\bonly applicants? who are (?:currently )?enrolled\b|仅限在校生|只招在校生|仅限在读学生|在校生专属', text, re.I)
+    if student_only:
+        return {'status': 'ineligible', 'reason': '官方 JD 明确限定当前在校申请人：' + student_only.group(0),
+                'evidence': [student_only.group(0)]}
+    recent_only = bool(re.search(r'\b(?:open to|welcome|accept)\s+(?:only\s+)?recent graduates?\b|\brecent graduates?\s+(?:are\s+)?(?:welcome|only)\b|仅限应届毕业生|仅接受应届毕业生', text, re.I))
+    explicit_acceptance = bool(re.search(
+        r'\b(?:open to|welcome|accept)\s+(?:all\s+)?graduates?\b|\bgraduates?\s+(?:are\s+)?(?:welcome|may apply|can apply|are eligible)\b|\bnon[- ]students?\s+(?:may|can|are welcome to)\s+apply\b|\b(?:no|not)\s+(?:current\s+)?enrol(?:l)?ment\s+(?:is\s+)?required\b|\bcurrent students?\s+and\s+graduates?\b|接受(?:已毕业|往届毕业)人员|已毕业(?:人员)?可申请|毕业生均可申请|毕业生可申请|非在校生(?:也|亦)?可申请|非在读(?:人员)?可申请|不要求(?:当前)?在校|不要求在读', text, re.I))
+    if recent_only and not re.search(r'\b(?:within|past|last)\s+3\s+years?\b|近三年|三年内', text, re.I):
+        return {'status': 'needs_confirmation', 'reason': '官方仅写“应届/近期毕业生”，未定义年限；需确认是否接受当前候选人的毕业时间。'}
+    if explicit_acceptance:
+        return {'status': 'eligible', 'reason': '官方 JD 明确接受毕业生或非在校申请人。'}
+    return {'status': 'needs_confirmation', 'reason': '官方 JD 未说明是否接受已毕业、非在校人员；需向招聘方确认。'}
+
+
+def internship_growth(job, category=None):
+    if (category or employment_category(job)) != 'internship':
+        return {'status': 'not_applicable', 'reason': '非 Internship 岗位。'}
+    text = str(job.get('jd') or '')
+    signal = re.search(r'\bmentorship\b|\bmentor(?:ing)?\b|\btraining (?:program|programme|provided)\b|\bprofessional development\b|\brotation\b|\bownership\b|\bend[- ]to[- ]end project\b|导师|带教|培训(?:计划|项目)?|轮岗|培养计划|独立负责|项目主导|转正机会', text, re.I)
+    return ({'status': 'supported', 'reason': 'JD 明确提到带教、培训、轮岗、项目负责或发展机会：' + signal.group(0)}
+            if signal else {'status': 'unknown', 'reason': 'JD 未明确说明成长机制；可询问带教、培训与项目负责范围。'})
+
+
+def target_alignment(job, preferences):
+    strategy = preferences.get('job_search_strategy') if isinstance(preferences, dict) else None
+    directions = strategy.get('target_directions', []) if isinstance(strategy, dict) else []
+    text = str(job.get('title') or '') + '\n' + str(job.get('jd') or '')
+    if isinstance(directions, list) and directions:
+        for direction in directions:
+            if not isinstance(direction, dict): continue
+            keywords = direction.get('keywords', [])
+            hit = next((str(keyword) for keyword in keywords if isinstance(keyword, str) and keyword.strip()
+                        and re.search(re.escape(keyword.strip()), text, re.I)), None)
+            if hit:
+                return direction.get('priority'), direction.get('label') or hit, hit
+        return None, None, None
+    # Compatibility for existing cases that predate per-case target directions.
+    if re.search(r'AI\s*(?:operations?|运营)|LLM\s*(?:evaluation|quality)|AI\s*(?:content|data)\s*(?:quality|operations?)|data quality|knowledge operations|知识库运营|大模型评测|AI 质量|AI内容质量|数据质量', text, re.I):
+        return 'P0', 'AI / 数据质量运营', 'AI / LLM / Data Operations'
+    if re.search(r'product operations? associate|product assistant|AI SaaS customer success|junior digital operations|产品运营专员|产品助理|客户成功|数字化运营', text, re.I):
+        return 'P1', '产品运营 / 产品助理', 'Product Operations'
+    if re.search(r'UX research assistant|research operations?|associate AI product manager|用户研究助理|研究运营|助理 AI 产品经理', text, re.I):
+        return 'P2', 'UX / AI 产品初级岗位', 'UX Research'
+    return None, None, None
+
+
 def matching(case, job):
     from resume_pipeline import load_evidence, route
     error = ''
@@ -273,10 +404,9 @@ def matching(case, job):
     if re.search(r'人才库|talent (?:pool|network|community)|join our database', jd, re.I):
         flags.append('仅人才库登记，未证明存在具体职位与即时招聘名额。')
         hard_reasons.append('不是可核验的具体空缺岗位。')
-    unpaid = bool(re.search(r'\bunpaid\s+(?:internship|position|role|job|opportunity)\b|\b(?:internship|position|role|job)\b.{0,30}\bunpaid\b|without pay|uncompensated internship|无薪实习|无薪岗位|不提供薪资', jd, re.I))
+    unpaid = bool(re.search(r'\bunpaid\s+(?:internship|intern|position|role|job|opportunity)\b|\b(?:internship|intern|position|role|job)\b.{0,45}\bunpaid\b|without pay|uncompensated internship|unpaid\s+work|无薪实习|无薪岗位|不提供薪资', jd, re.I))
     if unpaid:
-        flags.append('JD 明确为无薪；不符合求职薪资底线。')
-        hard_reasons.append('岗位明确无薪。')
+        flags.append('JD 明确无薪；薪资低于偏好，默认降级，是否破例由本人决定。')
     remote = bool(re.search(r'\bremote\b|远程', job['location'] + ' ' + str(job['employment_type']) + ' ' + jd, re.I))
     china_location = bool(re.search(r'Shanghai|Suzhou|上海|苏州|\bChina\b|中国', job['location'], re.I))
     preferred_city = bool(re.search(r'Shanghai|Suzhou|上海|苏州', job['location'], re.I))
@@ -322,6 +452,23 @@ def matching(case, job):
 
     verification = job.get('verification', {})
     source_status = verification.get('status', 'unknown')
+    category = employment_category(job)
+    work_mode = work_arrangement(job)
+    compensation = compensation_details(job, unpaid=unpaid)
+    internship_status = internship_qualification(job, requirements, source_status, category)
+    growth = internship_growth(job, category)
+    strategy = pref.get('job_search_strategy') if isinstance(pref.get('job_search_strategy'), dict) else {}
+    if category == 'internship':
+        inquiry_context = strategy.get('graduation_context_for_inquiry')
+        internship_status['inquiry_context'] = str(inquiry_context)[:100] if isinstance(inquiry_context, str) and inquiry_context.strip() else '已完成本科学业（毕业年限可补充）'
+    if internship_status['status'] == 'ineligible':
+        hard_reasons.append(internship_status['reason'])
+    elif internship_status['status'] == 'needs_confirmation':
+        flags.append(internship_status['reason'])
+    if category == 'internship' and growth['status'] == 'unknown':
+        flags.append(growth['reason'])
+    if compensation['paid_status'] == 'unknown':
+        flags.append('薪资/有薪状态未能从官方来源确认；按既有薪资偏好待核实。')
     if source_status == 'closed': hard_reasons.append('官方来源明确显示岗位已关闭或不可申请。')
     elif source_status != 'verified_open': flags.append('官方当前可申请状态未能核验。')
     if not requirements: flags.append('JD 中未识别到足够的资格要求，需人工审阅完整原文。')
@@ -336,27 +483,25 @@ def matching(case, job):
     evidence_by_kind = {kind: list(dict.fromkeys(
         proof['id'] for item in requirements for proof in item.get('evidence', []) if proof.get('kind') == kind
     )) for kind in ('work', 'project', 'education', 'profile')}
-    if re.search(r'AI\s*(?:operations?|运营)|LLM\s*(?:evaluation|quality)|AI\s*(?:content|data)\s*(?:quality|operations?)|data quality|knowledge operations|知识库运营|大模型评测|AI 质量|AI内容质量|数据质量', jd + ' ' + job['title'], re.I):
-        target_priority = 'P0'
-    elif re.search(r'product operations? associate|product assistant|AI SaaS customer success|junior digital operations|产品运营专员|产品助理|客户成功|数字化运营', jd + ' ' + job['title'], re.I):
-        target_priority = 'P1'
-    elif re.search(r'UX research assistant|research operations?|associate AI product manager|用户研究助理|研究运营|助理 AI 产品经理', jd + ' ' + job['title'], re.I):
-        target_priority = 'P2'
-    else:
-        target_priority = None
+    target_priority, target_label, target_keyword = target_alignment(job, pref)
+    if target_priority:
+        flags.append('命中个人目标方向 ' + str(target_priority) + '：' + str(target_label) + '（依据：' + str(target_keyword) + '）。')
     if direct_refs:
         flags.append('已找到岗位要求相关的可追溯个人事实，具体证据须逐条人工复核。')
     else:
         flags.append('目前没有足够的直接个人事实覆盖岗位要求。')
 
     grade_reasons = []
-    if excluded or unpaid or source_status == 'closed' or any(r['status'] == 'not_met' for r in blockers) or salary['status'] == 'not_met':
+    if excluded or source_status == 'closed' or internship_status['status'] == 'ineligible' or any(r['status'] == 'not_met' for r in blockers) or salary['status'] == 'not_met':
         grade = 'D'
         grade_reasons.extend(hard_reasons)
     elif source_status != 'verified_open' or not job.get('url') or not job.get('jd'):
         grade = 'U'
         grade_reasons.append('无法用当前官方来源证明这是仍可申请的具体岗位。')
-    elif error or blockers or remote or not china_location or salary['status'] != 'supported':
+    elif unpaid:
+        grade = 'C'
+        grade_reasons.extend(flags)
+    elif error or blockers or remote or not china_location or salary['status'] != 'supported' or internship_status['status'] == 'needs_confirmation' or (category == 'internship' and growth['status'] != 'supported'):
         grade = 'B'
         grade_reasons.extend(flags)
     elif (not preferred_city and not china_remote) or target_priority is None or not direct_refs or not evidence_kinds.intersection({'work', 'project'}):
@@ -369,7 +514,10 @@ def matching(case, job):
                 requirements=requirements, score=score, score_label=SCORE_LABEL,
                 priority={'A': 'apply_review', 'B': 'verify_first', 'C': 'hold', 'D': 'exclude', 'U': 'unverified'}[grade],
                 warnings=list(dict.fromkeys(flags)), hard_reasons=list(dict.fromkeys(hard_reasons)), salary=salary,
-                target_priority=target_priority, evidence_by_kind=evidence_by_kind,
+                target_priority=target_priority, target_label=target_label,
+                employment_category=category, internship_qualification=internship_status,
+                internship_growth=growth, work_mode=work_mode, posted_compensation=compensation,
+                evidence_by_kind=evidence_by_kind,
                 evidence_refs=direct_refs, evidence_error=error, routing=route(jd, job['title']),
                 eligibility='not_met' if grade == 'D' else 'needs_review', rules_version=MATCH_RULES_VERSION,
                 assessed_at=records.now(), ready_to_apply=False)
