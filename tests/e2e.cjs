@@ -102,6 +102,15 @@ async function noOverflow(page){assert(await page.evaluate(()=>document.document
       await page.goto(base+'/#applications');await page.locator('#application-board .board-column').first().waitFor();assert.equal(await page.locator('#application-board .board-column').count(),6);
       assert.equal(await page.locator('#confirmed-count').innerText(),'0');
     });
+    await check('DeepSeek key control saves and clears through local-only UI without echoing the key',async()=>{
+      const syntheticKey='synthetic-deepseek-key-0123456789',actions=[];
+      await page.route('**/api/ai/config',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({configured:false,source:null})}));
+      await page.route('**/api/ai/key',async route=>{const payload=route.request().postDataJSON();actions.push(payload.action);if(payload.action==='save')assert.equal(payload.api_key,syntheticKey);else assert.deepEqual(payload,{action:'clear'});await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload.action==='save'?{configured:true,source:'local'}:{configured:false,source:null})});});
+      await page.goto(base+'/#applications');const input=page.locator('#deepseek-api-key');await input.waitFor();assert.equal(await input.getAttribute('type'),'password');
+      await input.fill(syntheticKey);await page.getByRole('button',{name:'保存到本机'}).click();await page.locator('#deepseek-key-status').filter({hasText:'本机密钥已保存'}).waitFor();assert.equal(await input.inputValue(),'');
+      await page.getByRole('button',{name:'清除本机密钥'}).click();await page.locator('#deepseek-key-status').filter({hasText:'尚未配置'}).waitFor();assert.deepEqual(actions,['save','clear']);
+      await page.unroute('**/api/ai/config');await page.unroute('**/api/ai/key');
+    });
     await check('local positioning cites evidence and daily discovery stays bounded',async()=>{
       await page.goto(base+'/#applications');
       await page.locator('#career-positioning-panel summary').click();

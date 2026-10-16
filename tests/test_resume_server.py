@@ -7,6 +7,8 @@ import sys
 import tempfile
 import threading
 import unittest
+import os
+import stat
 from unittest.mock import patch
 from pathlib import Path
 
@@ -169,6 +171,47 @@ class StudioHTTPTests(unittest.TestCase):
         self.assertEqual(len(result['roles']), 5)
         self.assertNotIn('candidate@example.test', body.decode())
         self.assertEqual(self.request('GET', '/api/career/positioning', headers={'Host': 'evil.example'})[0], 403)
+
+    def test_deepseek_key_is_loopback_token_protected_private_and_never_returned(self):
+        import deepseek_client
+        secret_home = Path(self.tmp.name) / 'private-user-config'
+        secret_path = secret_home / 'deepseek.json'
+        headers = {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token}
+        with patch.object(deepseek_client, '_credential_path', return_value=secret_path), \
+             patch.dict(os.environ, {'DEEPSEEK_API_KEY': ''}):
+            self.assertEqual(self.request('GET', '/api/ai/config')[0], 403)
+            status, _, body = self.request('GET', '/api/ai/config', headers={'X-Local-Token': self.server.local_token})
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body), {'configured': False, 'source': None})
+
+            key = 'synthetic-deepseek-key-0123456789'
+            status, _, body = self.request('POST', '/api/ai/key', json.dumps({'action': 'save', 'api_key': key}).encode(), headers)
+            self.assertEqual(status, 200, body)
+            self.assertEqual(json.loads(body), {'configured': True, 'source': 'local'})
+            self.assertNotIn(key.encode(), body)
+            self.assertNotIn(key, self.request('GET', '/api/ai/config', headers={'X-Local-Token': self.server.local_token})[2].decode())
+            self.assertEqual(deepseek_client.configured_key(), key)
+            if os.name != 'nt':
+                self.assertEqual(stat.S_IMODE(secret_path.stat().st_mode), 0o600)
+                self.assertEqual(stat.S_IMODE(secret_home.stat().st_mode), 0o700)
+
+            status, _, body = self.request('POST', '/api/ai/key', json.dumps({'action': 'clear'}).encode(), headers)
+            self.assertEqual(status, 200, body)
+            self.assertEqual(json.loads(body), {'configured': False, 'source': None})
+            self.assertFalse(secret_path.exists())
+
+    def test_deepseek_key_rejects_bad_input_and_ai_routes_require_loopback(self):
+        headers = {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token}
+        for payload in ({'action': 'save', 'api_key': 'short'}, {'action': 'save'}, {'api_key': 'x' * 30}, []):
+            with self.subTest(payload=payload):
+                status, _, body = self.request('POST', '/api/ai/key', json.dumps(payload).encode(), headers)
+                self.assertEqual(status, 400, body)
+        self.assertEqual(self.request('POST', '/api/ai/key', b'{"action":"clear"}', {'Content-Type': 'application/json'})[0], 403)
+        handler = object.__new__(server_module.StudioHandler)
+        handler.client_address = ('192.168.1.20', 50000)
+        self.assertFalse(handler.ai_loopback_only())
+        handler.client_address = ('::1', 50000)
+        self.assertTrue(handler.ai_loopback_only())
 
     def test_daily_discovery_api_is_capped_authenticated_and_discovery_only(self):
         from unittest.mock import patch

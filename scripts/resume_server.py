@@ -115,6 +115,17 @@ class StudioHandler(BaseHTTPRequestHandler):
         if path == '/api/bootstrap':
             self.send_json(200, {'token': self.server.local_token, 'families': self.server.families,
                                  'mode': 'local-review-only'})
+        elif path == '/api/ai/config':
+            if not self.ai_loopback_only():
+                self.send_json(403, {'error': 'DeepSeek 密钥设置仅允许本机访问'})
+                return
+            if not self.has_token():
+                return
+            try:
+                import deepseek_client
+                self.send_json(200, deepseek_client.configuration_status())
+            except Exception:
+                self.send_json(500, {'error': '无法读取本机 DeepSeek 配置'})
         elif path in ('/api/opportunities', '/api/opportunities/studio'):
             if not self.opportunity_loopback_only():
                 self.send_json(403, {'error': '岗位发现数据仅允许本机访问'})
@@ -258,12 +269,22 @@ class StudioHandler(BaseHTTPRequestHandler):
         except (ValueError, IndexError, TypeError):
             return False
 
+    def ai_loopback_only(self):
+        """Keep model credentials and candidate context on the local machine."""
+        try:
+            return ipaddress.ip_address(self.client_address[0]).is_loopback
+        except (ValueError, IndexError, TypeError):
+            return False
+
     def do_POST(self):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked', '/api/opportunities/import', '/api/opportunities/discover', '/api/opportunities/discover-daily', '/api/opportunities/prepare'):
+        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/ai/key', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked', '/api/opportunities/import', '/api/opportunities/discover', '/api/opportunities/discover-daily', '/api/opportunities/prepare'):
             self.send_json(404, {'error': '接口不存在'})
+            return
+        if endpoint.startswith('/api/ai/') and not self.ai_loopback_only():
+            self.send_json(403, {'error': 'DeepSeek 设置与调用仅允许本机访问'})
             return
         if endpoint.startswith('/api/opportunities/') and not self.opportunity_loopback_only():
             self.send_json(403, {'error': '岗位发现数据仅允许本机访问'})
@@ -277,7 +298,8 @@ class StudioHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '-1'))
         except ValueError:
             length = -1
-        limit = (9 * 1024 * 1024 if endpoint.endswith('/material') else
+        limit = (2048 if endpoint == '/api/ai/key' else
+                 9 * 1024 * 1024 if endpoint.endswith('/material') else
                  2 * 1024 * 1024 if endpoint == '/api/boss/screen' else MAX_BODY)
         if not 0 < length <= limit:
             self.send_json(413 if length > limit else 400, {'error': '请求为空或超过大小限制'})
@@ -325,6 +347,9 @@ class StudioHandler(BaseHTTPRequestHandler):
                     raise ValueError('请求必须为对象')
                 if endpoint == '/api/ai/recommend':
                     self.ai_write(request)
+                    return
+                if endpoint == '/api/ai/key':
+                    self.ai_key_write(request)
                     return
                 if endpoint.startswith('/api/boss/'):
                     self.boss_write(endpoint, request)
@@ -473,6 +498,34 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json(503, {'error': str(error)})
         except Exception:
             self.send_json(502, {'error': 'DeepSeek 暂时不可用；本地推荐仍可继续使用'})
+        finally:
+            self.server.generation_lock.release()
+
+    def ai_key_write(self, request):
+        if not isinstance(request, dict):
+            self.send_json(400, {'error': '密钥设置格式无效'})
+            return
+        if request.get('action') == 'save' and set(request) == {'action', 'api_key'}:
+            action = 'save'
+        elif request == {'action': 'clear'}:
+            action = 'clear'
+        else:
+            self.send_json(400, {'error': '请选择保存或清除本机密钥'})
+            return
+        if not self.server.generation_lock.acquire(blocking=False):
+            self.send_json(409, {'error': 'DeepSeek 请求正在运行，请稍后重试'})
+            return
+        try:
+            import deepseek_client
+            if action == 'save':
+                deepseek_client.save_local_key(request['api_key'])
+            else:
+                deepseek_client.clear_local_key()
+            self.send_json(200, deepseek_client.configuration_status())
+        except ValueError as error:
+            self.send_json(400, {'error': str(error)})
+        except Exception:
+            self.send_json(500, {'error': '本机密钥保存失败，请检查本机权限'})
         finally:
             self.server.generation_lock.release()
 
