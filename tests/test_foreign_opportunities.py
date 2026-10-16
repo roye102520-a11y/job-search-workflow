@@ -169,6 +169,25 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         evidence = self.evidence(capabilities={'work_authorization': {'status': 'confirmed', 'value': False, 'countries': ['CN'], 'source_ref': 'evidence.md#permit'}})
         self.assertNotEqual(assess('Required: UK work authorization.', evidence)[0]['status'], 'not_met')
 
+    def test_application_benefits_and_vendor_sections_are_not_hard_requirements(self):
+        jd = '''Requirements:
+Currently reside in China.
+Must pass training modules and a required test.
+Work benefits:
+Flexible home-based work.
+Work-life balance.
+Vendor Type:
+When applying, select the option describing your working status.
+Equal Employment Opportunity:
+RWS is an equal opportunity employer.'''
+        items = assess(jd, self.evidence())
+        required_text = [item['text'] for item in items if item['level'] == 'required']
+        self.assertTrue(any(item.startswith('Currently reside in China') for item in required_text))
+        self.assertTrue(any('Must pass training modules' in item for item in required_text))
+        self.assertFalse(any('Flexible home-based' in item or 'Work-life balance' in item
+                             or 'Vendor Type' in item or 'working status' in item
+                             or 'equal opportunity employer' in item.lower() for item in required_text))
+
     def test_regression_discovery_resumes_after_manifest_before_tracker_crash(self):
         result = jobs.import_url(self.case, {'url': URL}, transport)
         (self.case / 'application-tracker.csv').unlink()
