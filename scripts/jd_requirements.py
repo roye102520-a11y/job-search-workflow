@@ -2,6 +2,7 @@
 import re
 from datetime import date
 from evidence_quality import usable_entries, positive_clauses
+from foreign_eligibility import check as foreign_checks
 
 
 def _plain(value):
@@ -158,6 +159,21 @@ def assess(jd, evidence):
                 index.update({ref['id']: ref for item in extra for ref in item.get('evidence', [])})
                 refs = list(dict.fromkeys(refs + [ref for i in extra for ref in i['evidence_refs']]))
                 reason += ' 同条中的其余条件分别核对，不能由学历覆盖。'
+        eligibility = foreign_checks(text, person)
+        if eligibility:
+            states = [item['status'] for item in eligibility]
+            if status == 'not_met' or 'not_met' in states:
+                status = 'not_met'
+            elif any(s != 'supported' for s in states):
+                status = 'partial' if refs or any(item['evidence'] for item in eligibility) else 'unknown'
+            elif not degree:
+                status = 'supported'
+            for item in eligibility:
+                reason += ' ' + item['reason']
+                for proof in item['evidence']:
+                    index[proof['id']] = proof
+                    if proof['id'] not in refs:
+                        refs.append(proof['id'])
         output.append({'text': text, 'level': level, 'status': status, 'reason': reason,
                        'evidence_refs': refs, 'evidence': [index[r] for r in refs if r in index], 'human_review_required': True})
     return output

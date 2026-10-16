@@ -1,0 +1,10 @@
+{
+  "private_case_files": 254,
+  "all_unchanged_during_audit": true,
+  "ui_files_unchanged": true,
+  "baseline_commit": "e32201c2cd49fcec36f8091e0b837c528086e267",
+  "branch": "codex/foreign-career-agent-p0",
+  "production_deployed": false,
+  "external_submissions": 0,
+  "emails_sent": 0
+}

@@ -1,0 +1,46 @@
+{
+  "baseline": {
+    "reused": false,
+    "requirements": [
+      {
+        "text": "Bachelor degree, graduating in 2026 or 2027.",
+        "level": "required",
+        "status": "supported",
+        "reason": "当前学历记录：示例大学｜公共文化管理｜本科｜2017.09–2021.06 Example University | Public Culture Management, undergraduate education | Sep 2017-Jun 2021；仅完整且已确认的学历记录可证明不满足。",
+        "evidence_refs": [
+          "person.education"
+        ],
+        "evidence": [
+          {
+            "id": "person.education",
+            "source_ref": "resume-evidence.json#person.education",
+            "text": "示例大学｜公共文化管理｜本科｜2017.09–2021.06 Example University | Public Culture Management, undergraduate education | Sep 2017-Jun 2021"
+          }
+        ],
+        "human_review_required": true
+      }
+    ]
+  },
+  "current_reused_baseline": {
+    "reused": true,
+    "requirements": [
+      {
+        "text": "Bachelor degree, graduating in 2026 or 2027.",
+        "level": "required",
+        "status": "supported",
+        "reason": "当前学历记录：示例大学｜公共文化管理｜本科｜2017.09–2021.06 Example University | Public Culture Management, undergraduate education | Sep 2017-Jun 2021；仅完整且已确认的学历记录可证明不满足。",
+        "evidence_refs": [
+          "person.education"
+        ],
+        "evidence": [
+          {
+            "id": "person.education",
+            "source_ref": "resume-evidence.json#person.education",
+            "text": "示例大学｜公共文化管理｜本科｜2017.09–2021.06 Example University | Public Culture Management, undergraduate education | Sep 2017-Jun 2021"
+          }
+        ],
+        "human_review_required": true
+      }
+    ]
+  }
+}
