@@ -4,12 +4,13 @@ import argparse
 import hmac
 import importlib
 import json
+import ipaddress
 import secrets
 import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit, parse_qs
 
 
 FAMILIES = {
@@ -114,10 +115,40 @@ class StudioHandler(BaseHTTPRequestHandler):
         if path == '/api/bootstrap':
             self.send_json(200, {'token': self.server.local_token, 'families': self.server.families,
                                  'mode': 'local-review-only'})
+        elif path in ('/api/opportunities', '/api/opportunities/studio'):
+            if not self.opportunity_loopback_only():
+                self.send_json(403, {'error': '岗位发现数据仅允许本机访问'})
+                return
+            if not self.has_token():
+                return
+            try:
+                import foreign_opportunities
+                if path.endswith('/studio'):
+                    key = parse_qs(urlsplit(self.path).query).get('job_key', [''])[0]
+                    self.send_json(200, foreign_opportunities.studio_job(self.server.case, key))
+                else:
+                    self.send_json(200, foreign_opportunities.list_jobs(self.server.case))
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                self.send_json(400, {'error': str(error)})
         elif path in ('/', '/index.html'):
             self.send_page(ASSETS / 'career-workspace.html')
+        elif path in ('/demo', '/demo/'):
+            self.send_page(ASSETS.parent / 'public/index.html')
+        elif path in ('/demo/preview.js', '/demo/styles.css'):
+            target = ASSETS.parent / 'public' / path.rsplit('/', 1)[-1]
+            self.send_bytes(200, target.read_bytes(), 'text/javascript; charset=utf-8' if target.suffix == '.js' else 'text/css; charset=utf-8')
         elif path == '/studio':
             self.send_page(ASSET)
+        elif path == '/strategy':
+            self.send_page(ASSETS / 'search-strategy.html')
+        elif path == '/api/strategy/followups':
+            if not self.has_token():
+                return
+            try:
+                from search_strategy import followups
+                self.send_json(200, followups(self.server.case))
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                self.send_json(400, {'error': str(error)})
         elif path in ('/assets/career-workspace.js', '/assets/career-workspace.css', '/assets/manifest.webmanifest', '/assets/sw.js', '/career-workspace.js', '/career-workspace.css', '/manifest.webmanifest', '/sw.js'):
             target = ASSETS / path.rsplit('/', 1)[-1]
             mime = {'.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json',}.get(target.suffix, 'text/plain; charset=utf-8')
@@ -138,6 +169,28 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json(200, boss_workspace.state(self.server.case))
             except (OSError, ValueError, TypeError) as error:
                 self.send_json(400, {'error': str(error)})
+        elif path == '/api/evidence/source':
+            if not self.has_token():
+                return
+            try:
+                from resume_pipeline import load_evidence, local
+                data = load_evidence(self.server.case)
+                ref = parse_qs(urlsplit(self.path).query).get('ref', [''])[0]
+                name = ref.split('#')[0]
+                if name not in {item['path'] for item in data['sources']}:
+                    raise ValueError('原文不在当前已校验的事实来源中')
+                target = local(self.server.case, name)
+                self.send_json(200, {'source_ref': ref, 'text': target.read_text(encoding='utf-8')})
+            except (OSError, ValueError, KeyError):
+                self.send_json(400, {'error': '无法读取已校验事实来源，请在档案页复核缓存后重试'})
+        elif path == '/api/jd/current':
+            if not self.has_token():
+                return
+            target = self.server.case / 'target-jd.md'
+            if not target.is_file() or target.is_symlink():
+                self.send_json(404, {'error': '当前案例尚未保存目标 JD'})
+            else:
+                self.send_json(200, {'jd': target.read_text(encoding='utf-8')})
         elif path.startswith('/resources/'):
             try:
                 import career_workspace
@@ -172,6 +225,8 @@ class StudioHandler(BaseHTTPRequestHandler):
     def send_page(self, asset):
         nonce = secrets.token_urlsafe(24)
         content = asset.read_text(encoding='utf-8').replace('__CSP_NONCE__', nonce)
+        if asset.name == 'index.html':
+            content = content.replace('href="styles.css"', 'href="/demo/styles.css"').replace('<script src="preview.js"', '<script nonce="' + nonce + '" src="/demo/preview.js"')
         policy = (f"default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'nonce-{nonce}'; "
                   "img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; "
                   "base-uri 'none'; form-action 'self'; frame-ancestors 'self'")
@@ -185,12 +240,22 @@ class StudioHandler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def opportunity_loopback_only(self):
+        """Never expose real opportunity/JD/evidence data to a LAN client."""
+        try:
+            return ipaddress.ip_address(self.client_address[0]).is_loopback
+        except (ValueError, IndexError, TypeError):
+            return False
+
     def do_POST(self):
         if not self.allowed_request():
             return
         endpoint = urlsplit(self.path).path
-        if endpoint not in ('/api/generate', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked'):
+        if endpoint not in ('/api/strategy/rank', '/api/generate', '/api/selection', '/api/jd/analyze', '/api/workspace/review', '/api/workspace/portfolio', '/api/workspace/material', '/api/workspace/preferences', '/api/ai/recommend', '/api/boss/settings', '/api/boss/screen', '/api/boss/blocked', '/api/opportunities/import', '/api/opportunities/discover'):
             self.send_json(404, {'error': '接口不存在'})
+            return
+        if endpoint.startswith('/api/opportunities/') and not self.opportunity_loopback_only():
+            self.send_json(403, {'error': '岗位发现数据仅允许本机访问'})
             return
         if not self.has_token():
             return
@@ -214,7 +279,28 @@ class StudioHandler(BaseHTTPRequestHandler):
             if len(raw) != length:
                 raise ValueError('请求内容不完整，请重试')
             request = json.loads(raw)
-            if endpoint != '/api/generate':
+            if endpoint.startswith('/api/opportunities/'):
+                if not isinstance(request, dict):
+                    raise ValueError('请求必须为对象')
+                if endpoint.endswith('/import'):
+                    if set(request) != {'url'} or not isinstance(request.get('url'), str):
+                        raise ValueError('仅接受岗位官网 URL')
+                    if len(request['url']) > 2048:
+                        raise ValueError('岗位链接过长')
+                elif set(request) - {'tenant', 'limit'} or not isinstance(request.get('tenant'), str):
+                    raise ValueError('请选择受支持的公开 ATS 租户')
+                if endpoint.endswith('/discover') and ('limit' in request and (type(request['limit']) is not int or not 1 <= request['limit'] <= 10)):
+                    raise ValueError('每轮最多检索 10 个岗位')
+                self.opportunity_write(endpoint, request)
+                return
+            if endpoint == '/api/jd/analyze':
+                if not isinstance(request, dict) or set(request) != {'jd'} or not isinstance(request['jd'], str):
+                    raise ValueError('请提供 JD 正文')
+                if not request['jd'].strip() or len(request['jd']) > 100000:
+                    raise ValueError('JD 正文为空或过长')
+                self.analyze_jd(request['jd'])
+                return
+            if endpoint not in ('/api/generate', '/api/selection'):
                 if not isinstance(request, dict):
                     raise ValueError('请求必须为对象')
                 if endpoint == '/api/ai/recommend':
@@ -225,10 +311,10 @@ class StudioHandler(BaseHTTPRequestHandler):
                     return
                 self.workspace_write(endpoint, request)
                 return
-            allowed = {'jd', 'title', 'company', 'url', 'language', 'family'}
+            allowed = {'jd', 'title', 'company', 'url', 'language', 'family', 'project_priorities', 'selection_budget'}
             if not isinstance(request, dict) or set(request) - allowed:
                 raise ValueError('输入包含不支持的字段')
-            if any(not isinstance(value, str) for value in request.values()):
+            if any(not isinstance(value, str) for key, value in request.items() if key not in {'project_priorities', 'selection_budget'}):
                 raise ValueError('JD 与岗位信息须为文字')
             if not request.get('jd', '').strip():
                 raise ValueError('请先粘贴岗位 JD 正文')
@@ -248,6 +334,10 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json(409, {'error': '已有一份简历正在生成，请完成后重试'})
             return
         try:
+            if endpoint == '/api/selection':
+                from resume_pipeline import preview_selection
+                self.send_json(200, preview_selection(self.server.case, request))
+                return
             result = self.server.generate_func(self.server.case, request, font=self.server.font)
             if not isinstance(result, dict) or not isinstance(result.get('files'), dict):
                 raise RuntimeError('生成器返回了无效结果')
@@ -264,13 +354,51 @@ class StudioHandler(BaseHTTPRequestHandler):
         finally:
             self.server.generation_lock.release()
 
+    def opportunity_write(self, endpoint, request):
+        if not self.server.generation_lock.acquire(blocking=False):
+            self.send_json(409, {'error': '正在处理其他工作台任务，请稍后重试'})
+            return
+        try:
+            import foreign_opportunities
+            if endpoint.endswith('/import'):
+                result = foreign_opportunities.import_url(self.server.case, request)
+            else:
+                result = foreign_opportunities.discover(self.server.case, request['tenant'], request.get('limit', 10))
+            self.send_json(200, result)
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            self.send_json(400, {'error': str(error)})
+        except Exception:
+            self.send_json(502, {'error': '官方岗位读取未完成；未记录为已核验，请稍后重试'})
+        finally:
+            self.server.generation_lock.release()
+
+    def analyze_jd(self, jd):
+        if not self.server.generation_lock.acquire(blocking=False):
+            self.send_json(409, {'error': '正在处理其他材料，请稍后重试'})
+            return
+        try:
+            from resume_pipeline import load_evidence
+            from jd_gap_analysis import analyze
+            self.send_json(200, analyze(jd, load_evidence(self.server.case)))
+        except (ValueError, OSError, TypeError, KeyError) as error:
+            self.send_json(400, {'error': str(error)})
+        except ImportError:
+            self.send_json(503, {'error': '本地分析模块未就绪，请检查工作台安装'})
+        except Exception:
+            self.send_json(500, {'error': '岗位分析未完成，请检查运行终端'})
+        finally:
+            self.server.generation_lock.release()
+
     def workspace_write(self, endpoint, request):
         if not self.server.generation_lock.acquire(blocking=False):
             self.send_json(409, {'error': '正在保存其他材料，请稍后重试'})
             return
         try:
             import career_workspace
-            if endpoint.endswith('/preferences'):
+            if endpoint == '/api/strategy/rank':
+                from search_strategy import run
+                action = run
+            elif endpoint.endswith('/preferences'):
                 from career_workspace import save_preferences
                 action = save_preferences
             elif endpoint.endswith('/material'):

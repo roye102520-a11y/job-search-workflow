@@ -17,7 +17,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 from xml.sax.saxutils import escape
+from job_data import canonical_fragment
 from jd_requirements import assess as assess_requirements, summary as requirement_summary
+from evidence_quality import positive_clauses, exclusion_reason
+from evidence_selection import decisions
 
 FAMILIES = {
     'user-operations': '用户 / 客户运营',
@@ -25,6 +28,7 @@ FAMILIES = {
     'implementation-support': '项目交付 / 实施支持',
     'product-operations': '产品助理 / 产品运营',
 }
+RULES_VERSION = 3
 TERMS = {
     'user-operations': ['用户运营', '客户运营', '客户成功', '用户服务', '客户服务', '学员', '用户分层', 'customer success', 'customer operations', 'customer support', 'customer service', 'onboarding'],
     'ai-content-operations': ['知识库', '内容运营', '文档清洗', '结构化', '问答', '质量检查', '离线评测', 'knowledge base', 'content operations', 'data annotation', 'ocr'],
@@ -53,7 +57,7 @@ def canonical_job_url(value):
         (key, val) for key, val in parse_qsl(parts.query, keep_blank_values=True)
         if not key.lower().startswith('utm_') and key.lower() not in ignored
     ))
-    return (parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip('/'), query)
+    return (parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip('/'), query, canonical_fragment(parts.fragment))
 
 
 def _labeled_value(jd, labels):
@@ -98,7 +102,7 @@ def resolve_metadata(request):
 def existing_package_for_url(case, url):
     """Return an existing application manifest with the same normalized URL."""
     target = canonical_job_url(url)
-    for manifest_path in sorted((case / 'applications').glob('*/manifest.json')):
+    for manifest_path in sorted(list((case / 'applications').glob('*/manifest.json')) + list((case / 'generated').glob('*/manifest.json'))):
         try:
             manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError):
@@ -109,43 +113,52 @@ def existing_package_for_url(case, url):
                 return manifest_path
     return None
 
-def positive_clauses(text):
-    # Conservative sentence-level exclusion, not a general language parser.
-    return [s.strip() for s in re.split(r'[。；;\n]', text) if s.strip() and not re.search(
-        r'不要求|没有.*要求|不是|未将|not required|does not require|no .*required', s, re.I)]
-
 def route(jd, title='', requested='auto'):
     require(requested in ('auto', *FAMILIES), '不支持的方向；请选择自动或已支持方向')
     body = ' '.join(positive_clauses(jd)).lower()
-    unsupported = re.search(r'机器学习.*工程师|算法.*工程师|研究工程师|software engineer|machine learning|research scientist', title, re.I)
-    unsupported = unsupported or re.search(r'分布式模型训练|pytorch.*训练框架', body, re.I)
-    scores = {f: sum(4 for t in terms if t in title.lower()) + sum(1 for t in terms if t in body)
-              for f, terms in TERMS.items()}
-    if unsupported:
-        return {'family': None, 'label': '现有模板不支持此技术方向', 'outcome': 'unsupported', 'scores': scores,
-                'warnings': ['本模板覆盖运营、内容、实施支持和产品助理；不能把 AI 应用实践包装为研究或工程资历。请由 Codex 单独评估硬门槛。']}
-    if re.search(r'\bae\b|account executive|客户执行', title, re.I):
-        return {'family': None, 'label': '客户执行职责需确认', 'outcome': 'ambiguous', 'scores': scores,
-                'warnings': ['AE 已按客户执行理解；仍需确认行业、客户类型、拓客签单及回款责任，不自动套用销售简历。']}
+    clean_title = ' '.join(positive_clauses(title)).lower()
+    unsupported = re.search(r'机器学习.*工程师|算法.*工程师|研究工程师|software engineer|machine learning engineer|research scientist', clean_title, re.I)
+    unsupported = unsupported or re.search(r'分布式模型训练|pytorch.*训练框架|生产级.*(?:模型训练|模型部署)|(?:必须|负责).*算法研发', body, re.I)
+    body_hits = {f: [t for t in terms if t in body] for f, terms in TERMS.items()}
+    title_hits = {f: [t for t in terms if t in clean_title] for f, terms in TERMS.items()}
+    scores = {f: len(body_hits[f]) * 3 + min(1, len(title_hits[f])) for f in FAMILIES}
     ranking = sorted(scores, key=scores.get, reverse=True)
-    if requested == 'auto' and (scores[ranking[0]] < 2 or scores[ranking[0]] == scores[ranking[1]]):
-        return {'family': None, 'label': '方向待确认', 'outcome': 'ambiguous', 'scores': scores,
-                'warnings': ['JD 信息不足或多个方向相近；补充完整职责，或明确选择方向后生成审阅稿。']}
-    family = requested if requested != 'auto' else ranking[0]
-    return {'family': family, 'label': FAMILIES[family], 'outcome': 'draft', 'scores': scores,
-            'warnings': [] if requested == 'auto' else ['采用用户指定方向；这不表示岗位硬门槛已经满足。']}
+    primary = ranking[0] if scores[ranking[0]] else None
+    secondary = ranking[1] if scores[ranking[1]] else None
+    result = {'scores': scores, 'primary_family': primary, 'secondary_family': secondary,
+              'basis': {f: {'jd_terms': body_hits[f], 'title_terms': title_hits[f]} for f in FAMILIES},
+              'score_type': '规则排序分，非概率', 'uncertainties': [], 'confirmation_required': True}
+    if unsupported:
+        return {**result, 'family': None, 'label': '现有模板不支持此技术方向', 'outcome': 'unsupported',
+                'warnings': ['不能用运营模板包装工程资历；人工选择方向也不能覆盖此范围限制。']}
+    if re.search(r'\bae\b|account executive|客户执行', clean_title, re.I):
+        return {**result, 'family': None, 'label': '客户执行职责需确认', 'outcome': 'ambiguous',
+                'warnings': ['确认行业、客户类型与签单责任后单独评估。']}
+    if not primary or scores[primary] < 4 or not body_hits.get(primary) or (secondary and scores[primary] - scores[secondary] <= 1):
+        result['uncertainties'].append('JD 正文信息不足或两个方向接近，请确认主方向。')
+        if requested == 'auto':
+            return {**result, 'family': None, 'label': '方向待确认', 'outcome': 'ambiguous', 'warnings': result['uncertainties']}
+    family = primary if requested == 'auto' else requested
+    return {**result, 'family': family, 'label': FAMILIES[family], 'outcome': 'draft',
+            'warnings': result['uncertainties'] + ([] if requested == 'auto' else ['采用用户指定方向；硬门槛仍按原始 JD 判断。'])}
 
 def load_evidence(case):
     path = local(case, 'resume-evidence.json')
     data = json.loads(path.read_text(encoding='utf-8'))
     require(isinstance(data, dict) and data.get('schema_version') == 1, '证据缓存 schema_version 应为 1')
     require(isinstance(data.get('sources'), list) and data['sources'], '缓存缺少事实源摘要')
+    stale_sources = []
     for source in data['sources']:
-        require(isinstance(source, dict) and sha(local(case, source.get('path'))) == source.get('sha256'),
-                '事实源已变化，请先让 Codex 重新核对证据缓存；不会使用过期表述')
+        if not isinstance(source, dict) or not isinstance(source.get('path'), str):
+            raise ValueError('事实缓存包含无效的来源记录；请先复核来源，不会使用过期表述')
+        if sha(local(case, source['path'])) != source.get('sha256'):
+            stale_sources.append(source['path'])
+    require(not stale_sources,
+            '事实源已变化（' + '、'.join(stale_sources) + '）；请先逐项复核并更新证据缓存，不会使用过期表述')
     require(isinstance(data.get('person'), dict), '缺少 person 信息')
+    require(any(isinstance(data['person'].get(k), str) and data['person'][k].strip() for k in ('name_zh', 'name_en')), '缺少当前候选人姓名记录')
     for key in ('name_zh', 'name_en', 'education_zh', 'education_en'):
-        require(isinstance(data['person'].get(key), str) and data['person'][key].strip(), '缺少基础字段 ' + key)
+        require(isinstance(data['person'].get(key, ''), str), '基础字段须为文字：' + key)
     require(isinstance(data.get('entries'), list) and data['entries'], '缺少经历条目')
     ids = set()
     for entry in data['entries']:
@@ -153,6 +166,7 @@ def load_evidence(case):
         require(isinstance(entry.get('id'), str) and entry['id'] not in ids, '经历 ID 缺失或重复')
         ids.add(entry['id'])
         local(case, entry.get('source_ref'))
+        require(entry['source_ref'].split('#')[0] in {source['path'] for source in data['sources']}, '经历来源未纳入摘要校验')
         for field in ('title_zh', 'title_en', 'dates', 'employment_zh', 'employment_en'):
             require(isinstance(entry.get(field), str) and entry[field].strip(), '经历缺少 ' + field)
         require(isinstance(entry.get('bullets'), list) and entry['bullets'], '经历没有内容')
@@ -161,7 +175,7 @@ def load_evidence(case):
             ids.add(bullet['id'])
             for lang in ('zh', 'en'):
                 require(isinstance(bullet.get(lang), str) and bullet[lang].strip(), '要点缺少中英文本')
-                require(not re.search(r'needs confirmation|待确认|\[TODO\]|\{\{', bullet[lang], re.I), '简历要点含占位内容')
+                require(not re.search(r'needs confirmation|待确认|\[TODO\]|\{\{', bullet[lang], re.I) or exclusion_reason(data, entry, bullet), '简历要点含占位内容')
                 compact = re.sub(r'\s+', '', bullet[lang]).lower()
                 for denied in data.get('excluded_claims', []):
                     require(re.sub(r'\s+', '', denied).lower() not in compact, '要点包含已否定的主张')
@@ -169,38 +183,14 @@ def load_evidence(case):
                 require(isinstance(bullet.get(field), list) and all(isinstance(v, str) for v in bullet[field]), '要点标签格式错误')
     return data
 
-def select(data, family, jd):
-    body = ' '.join(positive_clauses(jd)).lower()
-    def score(entry, bullet):
-        return (3 if family in bullet['tags'] else 0) + sum(2 for k in bullet['keywords'] if k.lower() in body) + (1 if family in entry.get('tags', []) else 0) + entry.get('family_priorities', {}).get(family, 0) + (2 if bullet.get('anchor') else 0)
-    scored = []
-    for entry in data['entries']:
-        bullets = sorted(entry['bullets'], key=lambda b: (-score(entry, b), b['id']))
-        scored.append({**entry, 'bullets': bullets, 'score': max(score(entry, b) for b in bullets)})
-    works = sorted([e for e in scored if e['kind'] == 'work'], key=lambda e: e['dates'], reverse=True)
-    projects = sorted([e for e in scored if e['kind'] == 'project'], key=lambda e: (-e['score'], e['id']))
-    # Keep a chronological employment record; vary emphasis and project allocation.
-    for entry in works:
-        anchors = [b for b in entry['bullets'] if b.get('anchor')]
-        rest = [b for b in entry['bullets'] if not b.get('anchor')]
-        # A neutral adjacent role can still provide a truthful supporting detail.
-        # Preserve two sourced bullets unless the role is explicitly a negative
-        # match for this family; this prevents a sparse one-page chronology.
-        entry['bullets'] = (anchors + rest)[:2 if entry['score'] >= 0 else 1]
-    projects = projects[:1 if family in ('user-operations', 'implementation-support') else 2]
-    for entry in projects:
-        entry['bullets'] = entry['bullets'][:2]
-    selected = works + projects
-    # A top highlight must not consume every bullet from the same job. Keeping
-    # the strongest candidate per entry leaves each chronological role with its
-    # own supporting detail below and avoids a résumé that only changes headings.
-    strongest = sorted([(entry, entry['bullets'][0]) for entry in selected if entry['bullets']],
-                       key=lambda pair: (-score(*pair), pair[1]['id']))[:2]
-    return selected, strongest[:2]
+def select(data, family, jd, priorities=None, budget=900):
+    selected, highlights, _ = decisions(data, family, jd, priorities, budget)
+    return selected, highlights
 
 def text_lines(person, entries, strongest, title, lang, family):
     labels = {'zh': ('匹配亮点', '工作经历', '相关个人项目', '教育与语言'),
               'en': ('RELEVANT EVIDENCE', 'EXPERIENCE', 'SELECTED PERSONAL PROJECTS', 'EDUCATION & LANGUAGES')}[lang]
+    require(bool(person.get('name_' + lang)), '缺少当前语言的已确认姓名，请先补充译名或选择已有语言')
     lines = [('name', person['name_' + lang]), ('headline', title)]
     contacts = [person.get('location_' + lang, ''), person.get('phone', ''), person.get('email', '')]
     lines.append(('contact', ' | '.join(x for x in contacts if x)))
@@ -222,7 +212,7 @@ def text_lines(person, entries, strongest, title, lang, family):
             lines.append(('job', entry['title_' + lang] + ' | ' + entry['employment_' + lang] + ' | ' + dates))
             body_bullets = [b for b in entry['bullets'] if b['id'] not in highlight_ids]
             lines.extend(('bullet', b[lang]) for b in body_bullets)
-    lines += [('section', labels[3]), ('body', person['education_' + lang]), ('body', person.get('languages_' + lang, ''))]
+    lines += [('section', labels[3]), ('body', person.get('education_' + lang, '')), ('body', person.get('languages_' + lang, ''))]
     return lines
 
 def render_pdf(path, lines, font=None):
@@ -276,6 +266,22 @@ def write(path, value):
 def json_write(path, value):
     write(path, json.dumps(value, ensure_ascii=False, indent=2) + '\n')
 
+def preview_selection(case, request):
+    require(isinstance(request, dict), '请求必须为 JSON 对象')
+    request, metadata, warnings = resolve_metadata(request)
+    require(40 <= len(request['jd']) <= 30000, '请提供 40–30000 字符的 JD 正文，链接不能替代正文')
+    data = load_evidence(Path(case).resolve())
+    routing = route(request['jd'], request['title'], request.get('family', 'auto'))
+    requirements = assess_requirements(request['jd'], data)
+    audit = {'candidates': []}
+    if routing['family']:
+        _, _, audit = decisions(data, routing['family'], request['jd'], request.get('project_priorities', []), request.get('selection_budget', 900))
+    return {'routing': routing, 'requirements': requirements, 'requirement_summary': requirement_summary(requirements),
+            'selection': audit, 'projects': [{'id': e['id'], 'title': e['title_zh']} for e in data['entries'] if e['kind'] == 'project'],
+            'unconfirmed': data.get('unconfirmed', []), 'metadata_resolution': metadata, 'warnings': warnings,
+            'evidence_digest': sha(Path(case) / 'resume-evidence.json'), 'status': 'preparing'}
+
+
 def generate(case, request, font=None):
     case = Path(case).resolve()
     require(case.is_dir(), '案例目录不存在')
@@ -292,6 +298,14 @@ def generate(case, request, font=None):
         require(parts.scheme in ('https', 'http') and parts.hostname and not parts.username and not parts.password, '岗位链接格式错误')
     existing_package = existing_package_for_url(case, url) if url else None
     data = load_evidence(case)
+    fingerprint = hashlib.sha256(json.dumps({'request': request, 'evidence': sha(case / 'resume-evidence.json'), 'policy': RULES_VERSION, 'font': str(font or '')}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    for prior_path in sorted((case / 'generated').glob('*/result.json')):
+        try:
+            prior = json.loads(prior_path.read_text(encoding='utf-8'))
+        except (ValueError, OSError):
+            continue
+        if prior.get('generation_fingerprint') == fingerprint and all(local(case, f).is_file() for f in prior.get('files', {}).values()):
+            return {**prior, 'reused': True}
     routing = route(request['jd'], request['title'], request.get('family', 'auto'))
     family = routing['family']
     requirements = assess_requirements(request['jd'], data)
@@ -306,7 +320,8 @@ def generate(case, request, font=None):
     result = {'family': family, 'label': routing['label'], 'outcome': routing['outcome'], 'warnings': list(routing['warnings']),
               'output_dir': target.relative_to(case).as_posix(), 'files': {}, 'selected_bullet_ids': [], 'status': 'preparing',
               'requirements': requirements, 'requirement_summary': requirements_summary,
-              'metadata_resolution': metadata_resolution}
+              'metadata_resolution': metadata_resolution, 'routing': routing, 'generation_fingerprint': fingerprint,
+              'rules_version': RULES_VERSION, 'reused': False}
     result['warnings'].extend(metadata_warnings)
     if existing_package:
         result['warnings'].append('该官网链接已有岗位包：' + existing_package.relative_to(case).as_posix() + '。本次只生成新的审阅材料，不建立第二个投递清单。')
@@ -317,7 +332,7 @@ def generate(case, request, font=None):
             result['warnings'].append('存在未满足或尚未核实的必需项；本次只能保留审阅稿，不能标记为投递就绪。')
         if not family:
             requirement_lines = ['# ' + routing['label'], '', '## 硬门槛检查', '', '| 要求 | 层级 | 判断 | 依据与边界 |', '|---|---|---|---|']
-            status_labels = {'supported': '有证据支持', 'unknown': '未知', 'not_met': '当前不满足'}
+            status_labels = {'supported': '有证据支持', 'partial': '部分相关', 'unknown': '未知', 'not_met': '当前不满足'}
             level_labels = {'required': '必需', 'preferred': '加分', 'context': '待判定'}
             for item in requirements:
                 requirement_lines.append('| ' + item['text'].replace('|', '\\|') + ' | ' + level_labels[item['level']] + ' | ' + status_labels[item['status']] + ' | ' + item['reason'].replace('|', '\\|') + ' |')
@@ -325,7 +340,9 @@ def generate(case, request, font=None):
             write(stage / 'match.md', '\n'.join(requirement_lines) + '\n')
             result['files']['match'] = (target / 'match.md').relative_to(case).as_posix()
         else:
-            selected, strongest = select(data, family, request['jd'])
+            selected, strongest, selection_audit = decisions(data, family, request['jd'], request.get('project_priorities', []), request.get('selection_budget', 900))
+            require(bool(selected), '当前没有可使用的已核对事实，请先确认事实与冲突')
+            result['selection'] = selection_audit
             result['selected_bullet_ids'] = [b['id'] for e in selected for b in e['bullets']]
             result['warnings'] += ['本地规则完成方向建议和证据选材；硬门槛、语义关联和版面仍需 Codex / 本人复核。生成成功不代表通过筛选。']
             if re.search(r'合成|synthetic', request['jd'], re.I):
@@ -334,12 +351,27 @@ def generate(case, request, font=None):
                 result['warnings'].append('英文姓名、机构与职务译名使用保守审阅表达；正式外发前复核。')
             lines = text_lines(data['person'], selected, strongest, request['title'], lang, family)
             pdf_name = 'resume-' + lang + '.pdf'
-            pdf_checks = render_pdf(stage / pdf_name, lines, font)
+            # Use the real PDF capacity check to adjust the budget, without shrinking text.
+            effective_budget = request.get('selection_budget', 900)
+            while True:
+                try:
+                    pdf_checks = render_pdf(stage / pdf_name, lines, font)
+                    break
+                except ValueError as exc:
+                    if '一页' not in str(exc) or effective_budget <= 300:
+                        raise
+                    effective_budget = max(300, effective_budget - 75)
+                    selected, strongest, selection_audit = decisions(data, family, request['jd'], request.get('project_priorities', []), effective_budget)
+                    lines = text_lines(data['person'], selected, strongest, request['title'], lang, family)
+            result['selected_bullet_ids'] = [b['id'] for e in selected for b in e['bullets']]
+            result['selection'] = selection_audit
+            if effective_budget != request.get('selection_budget', 900):
+                result['warnings'].append('为保持一页和 10pt 字号缩减选材篇幅；完整候选与未选原因仍保留。')
             md = '\n\n'.join(('# ' if k == 'name' else '## ' if k == 'section' else '### ' if k == 'job' else '- ' if k == 'bullet' else '') + t for k, t in lines)
             write(stage / ('resume-' + lang + '.md'), md + '\n')
             clauses = positive_clauses(request['jd'])
             match = ['# 岗位匹配审阅', '', '方向：' + FAMILIES[family], '', '这是可审阅的证据关联，不是 ATS 分数或录取概率。', '', '## 硬门槛检查', '', '| 要求 | 层级 | 判断 | 依据与边界 |', '|---|---|---|---|']
-            status_labels = {'supported': '有证据支持', 'unknown': '未知', 'not_met': '当前不满足'}
+            status_labels = {'supported': '有证据支持', 'partial': '部分相关', 'unknown': '未知', 'not_met': '当前不满足'}
             level_labels = {'required': '必需', 'preferred': '加分', 'context': '待判定'}
             for item in requirements:
                 refs = ', '.join(item['evidence_refs']) or '—'
@@ -351,10 +383,13 @@ def generate(case, request, font=None):
             match += ['', '## 选材与事实来源', '']
             for entry in selected:
                 match.append('- ' + entry['title_zh'] + ' → ' + entry['source_ref'] + ' → ' + ', '.join(b['id'] for b in entry['bullets']))
+            match += ['', '## 全部候选选材与取舍', '']
+            for item in selection_audit['candidates']:
+                match.append('- ' + ('已选' if item['selected'] else '未选') + ' [' + item['id'] + ']：' + item['reason'] + '；来源 ' + item['source_ref'])
             match += ['', '## 外发前检查', ''] + ['- ' + w for w in result['warnings']]
             match += ['- 硬门槛表只覆盖可识别的明确条目；未列出的职责、行业门槛和语义对应关系仍需要人工审阅。']
             write(stage / 'match.md', '\n'.join(match) + '\n')
-            name = data['person']['name_en']
+            name = data['person'].get('name_en') or data['person'].get('name_zh', '')
             points = '\n'.join('- ' + b['en'] for _, b in strongest)
             email = 'To: （未提供核实过的招聘邮箱；不发送）\nSubject: Application for ' + request['title'] + ' - ' + name + '\n\nDear Hiring Team,\n\nI am interested in the ' + request['title'] + ' position at ' + request['company'] + '. My relevant experience includes:\n\n' + points + '\n\nI would welcome the opportunity to discuss how this experience could contribute to your team. My resume is attached for your review.\n\nBest regards,\n' + name + '\n' + data['person'].get('email', '') + '\n\nAttachments (local draft): ' + pdf_name + '\n'
             write(stage / 'email.md', email)
@@ -364,17 +399,17 @@ def generate(case, request, font=None):
                     review += ['- ' + bullet['id'] + '：' + bullet['zh'], '  追问：你本人完成了哪一步？能展示什么材料？数字统计范围是什么？哪些是自测、哪些是真实用户结果？']
             review += ['', '## 缓存待确认项（不代表每项都是此 JD 必填）', '', json.dumps(data.get('unconfirmed', []), ensure_ascii=False, indent=2)]
             write(stage / 'review.md', '\n'.join(review) + '\n')
-            json_write(stage / 'selection.json', {'family': family, 'selected_bullet_ids': result['selected_bullet_ids'], 'source_digests': data['sources'], 'pdf_checks': pdf_checks, 'routing': routing, 'requirements': requirements, 'requirement_summary': requirements_summary, 'external_actions': []})
+            json_write(stage / 'selection.json', {'family': family, 'selected_bullet_ids': result['selected_bullet_ids'], 'source_digests': data['sources'], 'evidence_digest': sha(case / 'resume-evidence.json'), 'selection': selection_audit, 'pdf_checks': pdf_checks, 'routing': routing, 'requirements': requirements, 'requirement_summary': requirements_summary, 'external_actions': []})
             for key, name_ in {'pdf': pdf_name, 'markdown': 'resume-' + lang + '.md', 'match': 'match.md', 'email': 'email.md', 'review': 'review.md'}.items():
                 result['files'][key] = (target / name_).relative_to(case).as_posix()
             if url and not existing_package:
-                job_key = 'jd-' + hashlib.sha256((request['company'] + '|' + url).encode()).hexdigest()[:20]
+                job_key = 'jd-' + hashlib.sha256(repr(canonical_job_url(url)).encode()).hexdigest()[:20]
                 manifest = {'job_key': job_key, 'company': request['company'], 'role': request['title'], 'role_family': family,
                     'resume_variant': family + '-' + run, 'url': url, 'language': lang, 'status': 'preparing',
                     'jd_path': (target / 'jd.md').relative_to(case).as_posix(), 'resume_path': result['files']['pdf'],
                     'email_path': result['files']['email'], 'evidence_refs': [s['path'] for s in data['sources']],
                     'authorization_scope': '', 'unresolved_required_fields': [item['text'] for item in requirements_summary['required_blockers']] + [field + '复核' for field, data_ in metadata_resolution.items() if data_['source'] != 'input'] + ['本人事实及译名复核', '最终版面检查', '投递渠道与授权范围'],
-                    'artifacts': [{'path': result['files']['pdf'], 'sha256': sha(stage / pdf_name)}], 'updated_at': datetime.now(timezone.utc).isoformat()}
+                    'source_digests': data['sources'], 'evidence_digest': sha(case / 'resume-evidence.json'), 'artifacts': [{'path': result['files']['pdf'], 'sha256': sha(stage / pdf_name)}], 'updated_at': datetime.now(timezone.utc).isoformat()}
                 json_write(stage / 'manifest.json', manifest)
                 result['files']['manifest'] = (target / 'manifest.json').relative_to(case).as_posix()
         json_write(stage / 'result.json', result)

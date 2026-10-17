@@ -1,0 +1,82 @@
+[
+  {
+    "language": "zh",
+    "identical_semantic_output": true,
+    "baseline": {
+      "selected_ids": [
+        "support-segmentation",
+        "support-coordination",
+        "feedback-loop",
+        "operation-guides",
+        "lifecycle-support",
+        "content-qa-versioning",
+        "content-mixed-document-processing",
+        "content-structured-documents",
+        "catalog-structured-knowledge",
+        "catalog-information-architecture"
+      ],
+      "markdown_sha256": "435bd0bccd9b4f7a8f79ce40ee1ce69e04569b61f3564b78cb84be60c4488de7",
+      "pdf_text_sha256": "4ccabc5c1377ed308482c94af86b15f03c656ed336be105868e5873470625629",
+      "pages": 1,
+      "status": "preparing"
+    },
+    "current": {
+      "selected_ids": [
+        "support-segmentation",
+        "support-coordination",
+        "feedback-loop",
+        "operation-guides",
+        "lifecycle-support",
+        "content-qa-versioning",
+        "content-mixed-document-processing",
+        "content-structured-documents",
+        "catalog-structured-knowledge",
+        "catalog-information-architecture"
+      ],
+      "markdown_sha256": "435bd0bccd9b4f7a8f79ce40ee1ce69e04569b61f3564b78cb84be60c4488de7",
+      "pdf_text_sha256": "4ccabc5c1377ed308482c94af86b15f03c656ed336be105868e5873470625629",
+      "pages": 1,
+      "status": "preparing"
+    }
+  },
+  {
+    "language": "en",
+    "identical_semantic_output": true,
+    "baseline": {
+      "selected_ids": [
+        "support-segmentation",
+        "support-coordination",
+        "feedback-loop",
+        "operation-guides",
+        "lifecycle-support",
+        "content-qa-versioning",
+        "content-mixed-document-processing",
+        "content-structured-documents",
+        "catalog-structured-knowledge",
+        "catalog-information-architecture"
+      ],
+      "markdown_sha256": "0fe5344e84a3ec4bb38ab69a1af10c9ee7eef476a6673244817036543142f343",
+      "pdf_text_sha256": "98c116eff5460a7bd99238f81632adc5a0e2b3a1ae630cb27be6c2a0c4ed73ba",
+      "pages": 1,
+      "status": "preparing"
+    },
+    "current": {
+      "selected_ids": [
+        "support-segmentation",
+        "support-coordination",
+        "feedback-loop",
+        "operation-guides",
+        "lifecycle-support",
+        "content-qa-versioning",
+        "content-mixed-document-processing",
+        "content-structured-documents",
+        "catalog-structured-knowledge",
+        "catalog-information-architecture"
+      ],
+      "markdown_sha256": "0fe5344e84a3ec4bb38ab69a1af10c9ee7eef476a6673244817036543142f343",
+      "pdf_text_sha256": "98c116eff5460a7bd99238f81632adc5a0e2b3a1ae630cb27be6c2a0c4ed73ba",
+      "pages": 1,
+      "status": "preparing"
+    }
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "checked_at": "2026-10-16T12:21:00.466Z",
+  "url": "https://job-search-workflow-ten.vercel.app/",
+  "real_public_deployment": true,
+  "scope": "static preview only; no personal data, login, external action or backend validation",
+  "results": [
+    {
+      "name": "live public HTTP page",
+      "passed": true,
+      "http_status": 200
+    },
+    {
+      "name": "synthetic data disclosure",
+      "passed": true
+    },
+    {
+      "name": "local workspace guidance",
+      "passed": true
+    },
+    {
+      "name": "live role switch",
+      "passed": true
+    },
+    {
+      "name": "live mobile no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "no unhandled page JavaScript errors",
+      "passed": true,
+      "errors": []
+    }
+  ]
+}

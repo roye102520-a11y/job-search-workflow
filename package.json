@@ -1,0 +1,1 @@
+{"name":"career-studio-v2-tests","private":true,"scripts":{"test:e2e":"node tests/e2e.cjs"},"devDependencies":{"playwright":"1.62.1"}}

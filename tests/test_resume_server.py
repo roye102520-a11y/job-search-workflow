@@ -2,13 +2,18 @@
 import http.client
 import importlib.util
 import json
+import shutil
+import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
-spec = importlib.util.spec_from_file_location('resume_server', Path(__file__).parents[1] / 'scripts/resume_server.py')
+SCRIPTS = Path(__file__).parents[1] / 'scripts'
+sys.path.insert(0, str(SCRIPTS))
+spec = importlib.util.spec_from_file_location('resume_server', SCRIPTS / 'resume_server.py')
 server_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server_module)
 
@@ -18,6 +23,9 @@ class StudioHTTPTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix='synthetic-studio-')
         self.case = Path(self.tmp.name)
         (self.case / 'profile.json').write_text('{"synthetic_private":true}')
+        fixture = Path(__file__).parent / 'fixtures' / 'synthetic-case'
+        for name in ('career-evidence-bank.md', 'coaching-state.md', 'resume-evidence.json'):
+            shutil.copyfile(fixture / name, self.case / name)
         self.calls = []
 
         def generate(case, request, font=None):
@@ -60,6 +68,21 @@ class StudioHTTPTests(unittest.TestCase):
     def test_binds_only_ipv4_loopback(self):
         self.assertEqual(self.server.server_address[0], '127.0.0.1')
 
+    def test_strategy_uses_auth_and_saves_report_without_submission(self):
+        self.assertEqual(self.request('GET', '/strategy')[0], 200)
+        self.assertEqual(self.request('GET', '/api/strategy/followups')[0], 403)
+        headers = {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token}
+        payload = json.dumps({'jobs': [{'company': '合成', 'title': '运营', 'jd': '任职要求：知识库整理'}]}).encode()
+        self.assertEqual(self.request('POST', '/api/strategy/rank', payload, {'Content-Type': 'application/json'})[0], 403)
+        status, _, body = self.request('POST', '/api/strategy/rank', payload, headers)
+        self.assertEqual(status, 200, body)
+        result = json.loads(body)
+        self.assertTrue((self.case / result['file']).is_file())
+        self.assertFalse((self.case / 'application-tracker.csv').exists())
+        self.assertEqual(self.request('GET', '/api/strategy/followups', headers=headers)[0], 200)
+        with self.server.generation_lock:
+            self.assertEqual(self.request('POST', '/api/strategy/rank', payload, headers)[0], 409)
+
     def test_bootstrap_has_random_token_and_families_no_cors(self):
         status, headers, body = self.request('GET', '/api/bootstrap')
         result = json.loads(body)
@@ -90,6 +113,59 @@ class StudioHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(headers['Content-Type'], 'application/pdf')
         self.assertTrue(body.startswith(b'%PDF'))
+
+    def test_jd_analysis_and_current_target_are_token_protected(self):
+        jd = '培训运营-抖音生活服务\n职位描述\n1、业务培训策略输出与体系落地。\n职位要求\n1、本科及以上学历。'
+        (self.case / 'target-jd.md').write_text(jd, encoding='utf-8')
+        self.assertEqual(self.request('GET', '/api/jd/current')[0], 403)
+        status, _, body = self.request('GET', '/api/jd/current', headers={'X-Local-Token': self.server.local_token})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)['jd'], jd)
+        payload = json.dumps({'jd': jd}).encode()
+        headers = {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token}
+        status, _, body = self.request('POST', '/api/jd/analyze', payload, headers)
+        self.assertEqual(status, 200, body)
+        result = json.loads(body)
+        self.assertEqual(result['summary']['total'], 2)
+        self.assertEqual(len(result['plan']), 7)
+        self.assertEqual(self.request('POST', '/api/jd/analyze', payload, {'Content-Type': 'application/json'})[0], 403)
+
+    def test_opportunity_api_is_loopback_token_protected_and_uses_existing_store(self):
+        import foreign_opportunities
+        self.assertEqual(self.request('GET', '/api/opportunities')[0], 403)
+        headers = {'X-Local-Token': self.server.local_token}
+        status, _, body = self.request('GET', '/api/opportunities', headers=headers)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)['jobs'], [])
+        self.assertEqual(self.request('GET', '/api/opportunities/studio?job_key=opportunity-' + 'a' * 20, headers=headers)[0], 400)
+
+        payload = json.dumps({'url': 'https://jobs.lever.co/weloglobal/' + '1' * 8 + '-' + '1' * 4 + '-' + '1' * 4 + '-' + '1' * 4 + '-' + '1' * 12}).encode()
+        with patch.object(foreign_opportunities, 'import_url', return_value={'job_key': 'synthetic', 'duplicate': False, 'status': 'discovered'}) as importer:
+            status, _, body = self.request('POST', '/api/opportunities/import', payload,
+                                           {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token})
+        self.assertEqual(status, 200, body)
+        importer.assert_called_once()
+        self.assertEqual(self.request('POST', '/api/opportunities/import', payload, {'Content-Type': 'application/json'})[0], 403)
+        self.assertEqual(self.request('POST', '/api/opportunities/import', b'{"url":"https://evil.test/x"}',
+                                      {'Content-Type': 'application/json', 'X-Local-Token': self.server.local_token})[0], 400)
+
+        job_url = 'https://jobs.lever.co/weloglobal/11111111-1111-1111-1111-111111111111'
+        jd = 'Responsibilities:\nMaintain content quality and an AI knowledge base with sourced review procedures.\nRequired:\nBachelor degree.'
+        official = json.dumps({'id': job_url.rsplit('/', 1)[-1], 'text': 'AI Content Operations',
+                               'descriptionPlain': jd, 'categories': {'location': 'Shanghai, China', 'commitment': 'Internship'},
+                               'applyUrl': job_url + '/apply'})
+        import foreign_opportunities
+        registered = foreign_opportunities.import_url(self.case, {'url': job_url}, lambda requested: (200, requested, official))
+        status, _, body = self.request('GET', '/api/opportunities/studio?job_key=' + registered['job_key'], headers=headers)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)['jd'], jd)
+
+    def test_opportunity_loopback_guard_rejects_private_network_clients(self):
+        handler = object.__new__(server_module.StudioHandler)
+        handler.client_address = ('192.168.1.20', 50000)
+        self.assertFalse(handler.opportunity_loopback_only())
+        handler.client_address = ('127.0.0.1', 50000)
+        self.assertTrue(handler.opportunity_loopback_only())
 
     def test_missing_wrong_or_nonascii_token_rejected(self):
         for token in ('', 'wrong', 'é'):

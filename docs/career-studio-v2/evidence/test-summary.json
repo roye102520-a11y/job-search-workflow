@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-15",
+  "timezone": "Asia/Shanghai",
+  "baseline_commit": "48ca8e4",
+  "unit_and_http": {
+    "baseline": {
+      "total": 120,
+      "status": "passed",
+      "skipped": 0,
+      "duration_seconds": 3.168
+    },
+    "batch2": {
+      "total": 137,
+      "status": "passed",
+      "skipped": 0,
+      "duration_seconds": 3.367
+    },
+    "batch3": {
+      "total": 137,
+      "status": "passed",
+      "skipped": 0,
+      "duration_seconds": 3.346
+    },
+    "batch4": {
+      "total": 137,
+      "status": "passed",
+      "skipped": 0,
+      "duration_seconds": 3.307
+    },
+    "batch5": {
+      "total": 150,
+      "status": "passed",
+      "skipped": 0,
+      "duration_seconds": 6.262
+    }
+  },
+  "browser": {
+    "suite": "V2 real Chromium E2E",
+    "checks": [
+      {
+        "name": "public preview labels scope and five entrances",
+        "status": "passed"
+      },
+      {
+        "name": "five job seeker scenarios expose start result and next step",
+        "status": "passed"
+      },
+      {
+        "name": "public role switching and review are synthetic only",
+        "status": "passed"
+      },
+      {
+        "name": "empty local case begins with intake and recovers from invalid material",
+        "status": "passed"
+      },
+      {
+        "name": "complete local case offers direct JD and goal preferences",
+        "status": "passed"
+      },
+      {
+        "name": "JD requirements and all evidence are inspectable",
+        "status": "passed"
+      },
+      {
+        "name": "generation retains review state and reuses exact repeat",
+        "status": "passed"
+      },
+      {
+        "name": "manual direction cannot bypass unsupported role",
+        "status": "passed"
+      },
+      {
+        "name": "board has six states and generated material never becomes submitted",
+        "status": "passed"
+      },
+      {
+        "name": "BOSS screening refreshes saved data and shows unknown verification",
+        "status": "passed"
+      },
+      {
+        "name": "mobile responsive layout and keyboard focus",
+        "status": "passed"
+      },
+      {
+        "name": "service worker caches only shell and no personal preview",
+        "status": "passed"
+      },
+      {
+        "name": "input keyboard focus meets declared ring",
+        "status": "passed"
+      },
+      {
+        "name": "no browser JavaScript errors",
+        "status": "passed"
+      }
+    ],
+    "total": 14,
+    "passed": 14,
+    "synthetic_only": true
+  },
+  "online_verification": "blocked: navigation timeout, error-page capture denied",
+  "production_deployed": false,
+  "real_personal_data_modified": false,
+  "external_application_actions": false,
+  "visual_review": {
+    "disposition": "ship",
+    "scope": "仅原三项视觉修复的有限复核，全部 resolved",
+    "online_verified": false
+  }
+}

@@ -1,148 +1,239 @@
-"""Conservative, offline JD requirement extraction and evidence assessment.
-
-This is deliberately a small rules engine. It labels only explicit requirements
-that it can recognise; every other phrase stays unknown rather than being
-silently inferred from nearby experience.
-"""
+"""Conservative offline requirements: supported / partial / unknown / not_met."""
 import re
 from datetime import date
+from evidence_quality import usable_entries, positive_clauses
+from foreign_eligibility import check as foreign_checks
 
 
 def _plain(value):
     return re.sub(r'\s+', ' ', value or '').strip()
 
 
-def _is_negative(value):
-    return bool(re.search(r'不要求|不需要|无需|没有.*要求|未将|不是.*(?:运营|要求|职责)|not required|does not require|no .*required', value, re.I))
+def _requirement_categories(text):
+    categories = set()
+    if re.search(r'本科|bachelor|undergraduate|硕士|master|博士|phd|doctorate|degree', text, re.I):
+        categories.add('degree')
+    if re.search(r'在校|在读|enrolled|student|graduat(?:e|ing|ion)|毕业|届', text, re.I):
+        categories.add('student_or_graduation')
+    if re.search(r'工作许可|work authori[sz]ation|right to work|visa|签证', text, re.I):
+        categories.add('work_authorization')
+    if re.search(r'英语|英文|english|mandarin|chinese|日语|japanese|language proficiency|语言能力', text, re.I):
+        categories.add('language')
+    if re.search(r'\d+\s*(?:年|years?)|years? of experience|经验年限', text, re.I):
+        categories.add('experience_years')
+    if re.search(r'\b(?:paid|unpaid|salary|compensation|薪资|工资|无薪|有薪)\b|薪酬', text, re.I):
+        categories.add('compensation')
+    return categories
+
+
+def _atomic_conditions(text):
+    """Split independent hard conditions while keeping alternatives intact."""
+    parts = re.split(r'\s+(?:and|&|及|以及|并且)\s+', text, flags=re.I)
+    if len(parts) < 2:
+        return [text]
+    categories = [_requirement_categories(part) for part in parts]
+    all_categories = set().union(*categories)
+    if len(all_categories) > 1 and all(categories):
+        return [part.strip() for part in parts if part.strip()]
+    return [text]
 
 
 def _segments(jd):
-    """Return short candidate requirement statements and their explicit level."""
-    parts = re.split(r'(?<=[。；;.!?])|\n+', jd)
-    level = 'context'
-    result = []
-    for raw in parts:
+    level, output, seen = 'context', [], set()
+    required_headings = (
+        r'requirements?|qualifications?|must have|minimum qualifications|you.?ll need to have',
+        r'what you(?:\'|’)ll bring|what we(?:\'|’)re looking for|who you are|your profile',
+        r'mandatory requirements?|任职要求|职位要求|岗位要求|任职资格|必备条件',
+    )
+    preferred_headings = (r'preferred qualifications?|preferred|nice to have|加分项|优先条件',)
+    context_headings = (
+        r'responsibilities|job responsibilities|duties|what you(?:\'|’)ll do|what you(?:\'|’)ll be doing',
+        r'job description|about the role|role overview|what you(?:\'|’)ll build|key responsibilities',
+        r'about us|about the company|company description|who we are|what we offer|benefits|工作职责|职位描述|工作内容|职责',
+    )
+    for raw in re.split(r'[。；;\n!?！？]+', jd):
         text = _plain(raw)
-        if not text or _is_negative(text):
+        if not text:
             continue
-        lower = text.lower()
-        if re.search(r'^(?:工作重点|岗位职责|工作内容|职责|responsibilities?|what you.?ll be doing|employment structure)', text, re.I):
-            level = 'context'
-        if re.search(r'(^|[：:，, ])(加分|优先|优选|preferred|nice to have|plus)\b|加分项', lower, re.I):
-            level = 'preferred'
-        elif re.search(r'(^|[：:，, ])(必需|硬性要求|任职要求|职位要求|required|must have|minimum qualifications|you.?ll need to have|qualifications)|(?:至少|\d+以上)\s*\d*\s*(?:年|years?)|(?:minimum of|at least)\s*\d+', lower, re.I):
-            level = 'required'
-        if re.fullmatch(r'#*\s*(?:you.?ll need to have|minimum qualifications|qualifications|required|任职要求|职位要求)\s*:?', text, re.I):
+        text = re.sub(r'^#+\s*', '', text).strip()
+        heading_match = None
+        for patterns, section_level in ((preferred_headings, 'preferred'), (required_headings, 'required'), (context_headings, 'context')):
+            for pattern in patterns:
+                heading_match = re.match(r'^(?:' + pattern + r')\s*[:：]?\s*(.*)$', text, re.I)
+                if heading_match:
+                    level = section_level
+                    remainder = heading_match.group(1).strip()
+                    if not remainder:
+                        text = ''
+                    else:
+                        text = remainder
+                    break
+            if heading_match:
+                break
+        if not text:
             continue
-        # A requirement marker may prefix several comma-separated conditions.
-        candidates = re.split(r'[，、；;]' if re.search(r'[\u4e00-\u9fff]', text) else r'[；;]', text)
-        for candidate in candidates:
-            candidate = _plain(re.sub(r'^(?:必需|硬性要求|任职要求|职位要求|加分项|加分|优先|preferred|nice to have)\s*[：:]?\s*', '', candidate, flags=re.I))
-            if not candidate or _is_negative(candidate):
-                continue
-            if (level != 'context' or re.search(r'本科|硕士|博士|至少\s*\d+\s*(?:年|years?)|SQL|ERP|工作许可|出差|英语|英文|文档|知识库|结构化|OCR|Prompt|RAG|评测|流程图|操作指南|协作|产品|用户路径|machine learning|pytorch|生产级|distributed', candidate, re.I)):
-                result.append((candidate, level))
-    # Preserve order but remove duplicates caused by marker segmentation.
-    unique = []
-    seen = set()
-    for text, level in result:
-        key = text.lower()
-        if key not in seen:
-            seen.add(key)
-            unique.append((text, level))
-    return unique
-
-
-def _month_index(value):
-    match = re.search(r'(\d{4})\.(\d{1,2})', value or '')
-    if not match:
-        return None
-    return int(match.group(1)) * 12 + int(match.group(2)) - 1
+        # English comma lists remain one condition; Chinese comma clauses can carry their own marker.
+        for part in re.split(r'[，]' if re.search(r'[\u4e00-\u9fff]', text) else r'(?!)', text):
+            if re.search(r'加分|优先|优选|preferred|nice to have|\bplus\b', part, re.I):
+                item_level = 'preferred'
+                if re.match(r'^(?:加分|优先|preferred|nice to have)', part, re.I):
+                    level = item_level
+            elif re.search(r'必需|硬性要求|任职要求|职位要求|岗位要求|必须|\brequired\b|must have|minimum qualifications|at least|至少|\d+年以上', part, re.I):
+                item_level = level = 'required'
+            else:
+                item_level = level
+            # Split enumeration unless it expresses alternatives.
+            chunks = re.split(r'、', part)
+            for chunk in chunks:
+                if not positive_clauses(chunk):
+                    continue
+                condition = re.sub(r'^\s*(?:#+\s*)?(?:必需|硬性要求|任职要求|职位要求|岗位要求|岗位职责|工作内容|职责|加分项|加分|优先|required|preferred|nice to have|minimum qualifications|qualifications|you.?ll need to have)\s*[:：]?\s*', '', chunk, flags=re.I).strip()
+                if not condition:
+                    continue
+                if item_level != 'context' or re.search(r'本科|硕士|博士|SQL|ERP|工作许可|出差|英语|文档|知识库|OCR|Prompt|RAG|评测|流程|协作|产品|pytorch|生产级|在校|在读|毕业|student|enrolled|graduate|salary|compensation|unpaid|paid|years? of experience', condition, re.I):
+                    for atom in _atomic_conditions(condition):
+                        if atom.lower() not in seen:
+                            output.append((atom, item_level)); seen.add(atom.lower())
+    return output
 
 
 def _work_months(entries, tags):
-    """Union full-time months; do not double count overlapping roles."""
-    months = set()
+    months, refs, invalid = set(), [], False
     for entry in entries:
-        if entry.get('kind') != 'work' or '兼职' in entry.get('employment_zh', ''):
+        if entry.get('kind') != 'work' or re.search(r'兼职|part.time|实习|intern', entry.get('employment_zh', '') + entry.get('employment_en', ''), re.I):
             continue
-        if not (set(entry.get('tags', [])) & set(tags)):
+        if not set(entry.get('tags', [])) & set(tags) or not entry.get('bullets'):
             continue
-        values = re.findall(r'\d{4}\.\d{1,2}', entry.get('dates', ''))
-        if len(values) < 2:
-            continue
-        start, end = _month_index(values[0]), _month_index(values[1])
-        if start is not None and end is not None and end >= start:
-            months.update(range(start, end + 1))
-    return len(months)
+        dates = re.findall(r'(\d{4})[.\-/](\d{1,2})(?!\d)', entry.get('dates', ''))
+        if len(dates) != 2 or any(not 1 <= int(m) <= 12 for _, m in dates):
+            invalid = True; continue
+        start, end = [int(y) * 12 + int(m) - 1 for y, m in dates]
+        if end < start:
+            invalid = True; continue
+        now = date.today().year * 12 + date.today().month - 1
+        if start > now:
+            invalid = True; continue
+        months.update(range(start, min(end, now) + 1))
+        refs.extend(b['id'] for b in entry['bullets'])
+    return len(months), refs, invalid
 
 
-def _refs(entries, tag=None, needle=None):
-    refs = []
-    for entry in entries:
-        for bullet in entry.get('bullets', []):
-            content = ' '.join([bullet.get('zh', ''), bullet.get('en', ''), ' '.join(bullet.get('keywords', []))])
-            if (not tag or tag in bullet.get('tags', []) or tag in entry.get('tags', [])) and (not needle or re.search(needle, content, re.I)):
-                refs.append(bullet['id'])
-    return refs[:3]
-
-
-def _item(text, level, status, reason, refs=None):
-    return {'text': text, 'level': level, 'status': status, 'reason': reason, 'evidence_refs': refs or []}
+CONCEPTS = [
+    (r'\bSQL\b', r'\bSQL\b', None), (r'\bERP\b', r'\bERP\b', 'implementation-support'),
+    (r'\bOCR\b', r'\bOCR\b', 'ai-content-operations'), (r'\bRAG\b', r'\bRAG\b|检索.*(?:原型|引用)|retrieval', 'ai-content-operations'),
+    (r'prompt|提示词', r'prompt|提示词', 'ai-content-operations'),
+    (r'离线评测|AI输出评测|offline evaluation', r'离线.*(?:评测|样本)|offline.*(?:evaluation|examples)', 'ai-content-operations'),
+    (r'知识库|问答', r'知识库|问答|knowledge base|question.and.answer', 'ai-content-operations'),
+    (r'文档.*(?:清洗|结构化|整理|维护|管理)|内容整理|结构化', r'清洗|结构化|structured|cleaned|文档管理|维护内容版本', 'ai-content-operations'),
+    (r'质量检查|质量意识', r'质量|复核|校对|quality|checked|review', 'ai-content-operations'),
+    (r'流程图|操作指南|操作手册', r'流程图|操作卡|指南|操作手册|instruction|guide', 'implementation-support'),
+    (r'多方协作|协调多方|跨团队|多方协调', r'协调|协作|coordinat|stakeholder', 'implementation-support'),
+    (r'项目.*(?:跟进|进度|交付)|实施', r'进度|交付|工单|跟进|progress|deliver|ticket|follow.up', 'implementation-support'),
+    (r'用户路径|信息(?:架构|分类)|需求文档|产品.*(?:项目|实践)|可交互', r'用户路径|分类|需求|可交互|user journey|information architecture|product scope', 'product-operations'),
+    (r'用户.*(?:沟通|服务|运营)|客户.*(?:沟通|服务|成功|运营)', r'参与者|用户|客户|registrant|participant|customer|client', 'user-operations'),
+]
 
 
 def assess(jd, evidence):
-    """Assess explicit JD requirements against a checked evidence cache.
-
-    Status is one of supported / unknown / not_met. `not_met` is reserved for
-    a clear contradiction in documented facts; omitted evidence is `unknown`.
-    """
     if not isinstance(jd, str) or not jd.strip():
         raise ValueError('JD 必须是非空文本')
     if not isinstance(evidence, dict) or not isinstance(evidence.get('person'), dict):
         raise ValueError('证据缓存缺少 person')
-    person = evidence['person']
-    entries = evidence.get('entries', [])
-    if not isinstance(entries, list):
+    if not isinstance(evidence.get('entries', []), list):
         raise ValueError('证据缓存 entries 格式错误')
-    education = ' '.join(str(person.get(key, '')) for key in ('education_zh', 'education_en'))
+    person, entries = evidence['person'], usable_entries(evidence)
+    index = {b['id']: {'id': b['id'], 'source_ref': e.get('source_ref', ''), 'text': b.get('zh', ''), 'kind': e.get('kind', 'unknown')}
+             for e in entries for b in e['bullets']}
+    education = ' '.join(str(person.get(k, '')) for k in ('education_zh', 'education_en')).strip()
+    education_pending = any(isinstance(item, dict) and item.get('field', item.get('id')) in {'person.education', 'person.education_zh', 'education'} for item in evidence.get('unconfirmed', []))
+    if education_pending or person.get('education_status') in {'unconfirmed', 'conflict', 'pending'}:
+        education = ''
+    index['person.education'] = {'id': 'person.education', 'source_ref': person.get('education_source_ref', 'resume-evidence.json#person.education'), 'text': education, 'kind': 'education'}
     output = []
     for text, level in _segments(jd):
-        low = text.lower()
-        if re.search(r'计算机.*(?:硕士|博士)|(?:硕士|博士).*机器学习|master.?s|phd', text, re.I):
-            status = 'not_met' if '本科' in education or 'undergraduate' in education.lower() else 'unknown'
-            output.append(_item(text, level, status, '已记录学历为商务英语本科；没有把未提供的相关硕博学历推定为满足。', ['person.education']))
-        elif re.search(r'本科|undergraduate|bachelor', text, re.I):
-            status = 'supported' if ('本科' in education or 'undergraduate' in education.lower()) else 'unknown'
-            output.append(_item(text, level, status, '证据缓存记录了本科教育。' if status == 'supported' else '未找到可核验的本科学历记录。', ['person.education'] if status == 'supported' else []))
-        elif re.search(r'(?:至少\s*\d+|minimum of\s*\d+|at least\s*\d+|\d+年以上).*(?:用户|客户|运营|服务|customer|operations|support|account management)', text, re.I):
-            years = re.search(r'(?:至少\s*|minimum of\s*|at least\s*)(\d+)|(?:^|\D)(\d+)年以上', text, re.I)
-            needed = int(next(group for group in years.groups() if group is not None)) * 12
-            got = _work_months(entries, ['user-operations'])
-            status = 'supported' if got >= needed else 'not_met'
-            output.append(_item(text, level, status, f'已记录的全职用户/服务相关经历按月份并集为 {got} 个月；不与兼职或重叠岗位相加。', _refs(entries, 'user-operations')))
-        elif re.search(r'(?:5|五)年.*(?:机器学习|machine learning)|分布式.*(?:模型|训练)|pytorch.*训练|生产级.*模型', text, re.I):
-            output.append(_item(text, level, 'not_met', '现有事实库记录的是 AI 内容处理和个人应用实践，不是所述机器学习训练或生产模型经历。', []))
-        elif re.search(r'\bSQL\b|\bERP\b|工作许可|work authorization|商务英语|professional fluency|professional.*english|mandarin.*english|native.*english|fluent.*english|英文.*(?:流利|会议|报告)|出差|travel|api.*(?:engineering|technical|沟通)|processing flows|technical errors', text, re.I):
-            output.append(_item(text, level, 'unknown', '当前事实库没有可核验的对应能力或意愿；不能从 CET-4、相邻工具或所在地推定。', []))
-        elif re.search(r'文档.*(?:清洗|结构化|整理|维护|管理)|内容整理|知识(?:库)?.*(?:整理|维护)|知识库|问答.*(?:生产|整理)|质量检查|prompt|质量意识|文字表达', text, re.I):
-            refs = _refs(entries, 'ai-content-operations')
-            output.append(_item(text, level, 'supported' if refs else 'unknown', '有文档清洗、结构化、问答整理或质量检查的事实记录。' if refs else '未找到直接事实。', refs))
-        elif re.search(r'\bOCR\b|离线评测|AI输出评测|\bRAG\b', text, re.I):
-            refs = _refs(entries, 'ai-content-operations')
-            output.append(_item(text, level, 'supported' if refs else 'unknown', '有相邻的 OCR、离线评测或 RAG 实践；具体深度仍以事实条目为准。' if refs else '未找到直接事实。', refs))
-        elif re.search(r'流程图|操作指南|多方协作|协调多方|跨团队|沟通.*文档|文档.*沟通|项目.*(?:跟进|进度|交付)|实施', text, re.I):
-            refs = _refs(entries, 'implementation-support')
-            output.append(_item(text, level, 'supported' if refs else 'unknown', '有流程图、指南、问题跟进或多方协调事实记录。' if refs else '未找到直接事实。', refs))
-        elif re.search(r'可交互.*(?:方案|项目)|用户路径|信息(?:架构|分类)|需求文档|产品.*(?:项目|实践)', text, re.I):
-            refs = _refs(entries, 'product-operations')
-            output.append(_item(text, level, 'supported' if refs else 'unknown', '有个人项目中的用户路径、分类、可交互交付或产品边界事实记录。' if refs else '未找到直接事实。', refs))
+        status, reason, refs = 'unknown', '未找到足够的直接证据；请人工复核，缺失不代表不具备。', []
+        degree = re.search(r'本科|bachelor|undergraduate|硕士|master|博士|phd|doctorate', text, re.I)
+        years = re.search(r'(?:至少\s*|minimum of\s*|at least\s*)(\d+)\s*(?:年|years?)|(?:^|\D)(\d+)\s*年以上', text, re.I)
+        if degree:
+            want = 3 if re.search(r'博士|phd|doctorate', text, re.I) and not re.search(r'硕士|master', text, re.I) else 2 if re.search(r'硕士|master', text, re.I) else 1
+            got = 3 if re.search(r'博士|phd|doctorate', education, re.I) else 2 if re.search(r'硕士|master', education, re.I) else 1 if re.search(r'本科|bachelor|undergraduate', education, re.I) else 0
+            if education:
+                refs = ['person.education']
+                status = 'supported' if got >= want else 'not_met' if person.get('education_complete') is True and got else 'unknown'
+                reason = '当前学历记录：' + education + '；仅完整且已确认的学历记录可证明不满足。'
+                if status == 'supported' and re.search(r'在读|预计|未毕业|currently studying|expected', education, re.I):
+                    status, reason = 'partial', reason + ' 学历完成状态尚未证明。'
+                major = re.search(r'计算机|机器学习|computer science|machine learning', text, re.I)
+                if status == 'supported' and major and not re.search(r'计算机|机器学习|computer science|machine learning', education, re.I):
+                    status, reason = 'partial', reason + ' 学历层级有证据，专业要求需单独确认。'
+        elif years and re.search(r'用户|客户|运营|服务|customer|operations|support|account management', text, re.I):
+            needed = int(next(g for g in years.groups() if g)) * 12
+            got, refs, invalid = _work_months(entries, ['user-operations'])
+            status = 'supported' if got >= needed else 'not_met' if person.get('experience_complete') is True and not invalid else 'partial' if got else 'unknown'
+            reason = f'已记录的全职用户/服务相关经历按月份并集为 {got} 个月；不累加兼职或重叠岗位。' + ('经历完整性已确认。' if person.get('experience_complete') is True else '经历完整性未确认，不能据此断定不满足。')
+        elif re.search(r'出差|travel|英语|english', text, re.I):
+            key = 'travel' if re.search(r'出差|travel', text, re.I) else 'professional_english'
+            fact = person.get('capabilities', {}).get(key, {})
+            if isinstance(fact, dict) and fact.get('status') == 'confirmed' and isinstance(fact.get('value'), bool) and fact.get('source_ref'):
+                status = 'supported' if fact['value'] else 'not_met'
+                ref = 'person.capabilities.' + key
+                index[ref] = {'id': ref, 'source_ref': fact['source_ref'], 'text': str(fact['value']), 'kind': 'profile'}; refs = [ref]
+                reason = '使用本人确认的当前能力/意愿记录；外发前复核适用范围。'
         else:
-            output.append(_item(text, level, 'unknown', '本地规则无法可靠判断该要求；需由 Codex 或候选人核实。', []))
+            conditions = [(needle, tag) for trigger, needle, tag in CONCEPTS if re.search(trigger, text, re.I)]
+            parts, all_refs = [], []
+            strict = bool(re.search(r'生产级|生产环境|独立负责|熟练|精通|production|expert|proficien', text, re.I))
+            for needle, tag in conditions:
+                direct, adjacent = [], []
+                for entry in entries:
+                    for bullet in entry['bullets']:
+                        content = bullet.get('zh', '') + ' ' + bullet.get('en', '')
+                        if re.search(needle, content, re.I):
+                            direct.append(bullet['id'])
+                        elif tag and tag in set(entry.get('tags', []) + bullet.get('tags', [])):
+                            adjacent.append(bullet['id'])
+                chosen = direct or adjacent
+                complete_depth = direct and (not strict or any(re.search(r'生产级|生产环境|独立负责|熟练|精通|production|expert|proficien', ' '.join(positive_clauses(index[r]['text'])), re.I) for r in direct))
+                parts.append('supported' if complete_depth else 'partial' if chosen else 'unknown')
+                all_refs.extend(chosen)
+            if parts:
+                # A compound statement is fully supported only when every condition is proved.
+                status = 'supported' if all(p == 'supported' for p in parts) else 'partial' if any(p != 'unknown' for p in parts) else 'unknown'
+                refs = list(dict.fromkeys(all_refs))
+                reason = '逐项找到直接表述。' if status == 'supported' else '仅部分条件或相邻实践有证据；场景、熟练度和完整责任尚未证明。'
+        # A degree in a compound statement must not hide another hard condition.
+        if degree and (years or any(re.search(trigger, text, re.I) for trigger, _, _ in CONCEPTS) or re.search(r'工作许可|出差|英语|english|travel|work authorization', text, re.I)):
+            remaining = re.sub(r'本科|bachelor(?:[’\']s)?|undergraduate|硕士|master(?:[’\']s)?|博士|phd|doctorate', '', text, flags=re.I)
+            extra = assess('任职要求：' + remaining, evidence)
+            if extra:
+                if status != 'not_met' and any(i['status'] != 'supported' for i in extra):
+                    status = 'partial' if refs or any(i['evidence_refs'] for i in extra) else 'unknown'
+                if status == 'unknown' and any(i['evidence_refs'] for i in extra):
+                    status = 'partial'
+                index.update({ref['id']: ref for item in extra for ref in item.get('evidence', [])})
+                refs = list(dict.fromkeys(refs + [ref for i in extra for ref in i['evidence_refs']]))
+                reason += ' 同条中的其余条件分别核对，不能由学历覆盖。'
+        eligibility = foreign_checks(text, person)
+        if eligibility:
+            states = [item['status'] for item in eligibility]
+            if status == 'not_met' or 'not_met' in states:
+                status = 'not_met'
+            elif any(s != 'supported' for s in states):
+                status = 'partial' if refs or any(item['evidence'] for item in eligibility) else 'unknown'
+            elif not degree:
+                status = 'supported'
+            for item in eligibility:
+                reason += ' ' + item['reason']
+                for proof in item['evidence']:
+                    index[proof['id']] = proof
+                    if proof['id'] not in refs:
+                        refs.append(proof['id'])
+        output.append({'text': text, 'level': level, 'status': status, 'reason': reason,
+                       'evidence_refs': refs, 'evidence': [index[r] for r in refs if r in index], 'human_review_required': True})
     return output
 
 
 def summary(items):
-    counts = {status: sum(1 for item in items if item['status'] == status) for status in ('supported', 'unknown', 'not_met')}
-    required_blockers = [item for item in items if item['level'] == 'required' and item['status'] != 'supported']
-    return {'counts': counts, 'required_blockers': required_blockers, 'ready_for_human_review': not required_blockers}
+    counts = {s: sum(i['status'] == s for i in items) for s in ('supported', 'partial', 'unknown', 'not_met')}
+    blockers = [i for i in items if i['level'] == 'required' and i['status'] != 'supported']
+    return {'counts': counts, 'required_blockers': blockers, 'ready_for_human_review': not blockers}

@@ -45,7 +45,18 @@ def canonical(url):
     require(u.scheme in ('https', 'http') and u.netloc, 'Invalid job URL')
     query = [(k, v) for k, v in parse_qsl(u.query, keep_blank_values=True)
              if not k.lower().startswith('utm_') and k.lower() not in ('gclid', 'fbclid', 'trid')]
-    return urlunsplit((u.scheme.lower(), u.netloc.lower(), u.path.rstrip('/'), urlencode(sorted(query)), ''))
+    fragment = canonical_fragment(u.fragment)
+    return urlunsplit((u.scheme.lower(), u.netloc.lower(), u.path.rstrip('/'), urlencode(sorted(query)), fragment))
+
+
+def canonical_fragment(fragment):
+    """Keep application routes; ignore ordinary in-page anchors for job identity."""
+    if not isinstance(fragment, str) or not fragment:
+        return ''
+    route = fragment.rsplit('#', 1)[-1].lstrip('!')
+    if re.match(r'^/?(?:jobs?|careers?|positions?|openings?|vacanc(?:y|ies)|requisitions?)(?:/|$)', route, re.I):
+        return route.rstrip('/')
+    return ''
 
 def local(root, value):
     require(isinstance(value, str) and value, 'Empty file path')
@@ -128,13 +139,15 @@ def validate(root, m, final=False):
     require(m.get('status') in STAGES, 'Invalid stage')
     require(m.get('execution_status', 'idle') in EXEC, 'Invalid execution status')
     require(m.get('sync_status', 'not_requested') in SYNC, 'Invalid sync status')
-    for k in ('company', 'role', 'role_family', 'resume_variant', 'url', 'jd_path', 'resume_path'):
+    early = m['status'] in {'discovered', 'shortlisted'} and not final
+    required = ('company', 'role', 'url', 'jd_path') if early else ('company', 'role', 'role_family', 'resume_variant', 'url', 'jd_path', 'resume_path')
+    for k in required:
         require(isinstance(m.get(k), str) and m[k].strip(), 'Missing ' + k)
     canonical(m['url'])
     require(isinstance(m.get('aliases', []), list), 'Aliases must be a list of URLs')
     for value in m.get('aliases', []):
         canonical(value)
-    require(isinstance(m.get('evidence_refs'), list) and m['evidence_refs'], 'Missing evidence references')
+    require(isinstance(m.get('evidence_refs'), list) and (early or m['evidence_refs']), 'Missing evidence references')
     for ref in m['evidence_refs']:
         require(isinstance(ref, str) and ref.strip(), 'Evidence reference must be a nonempty path string')
         local(root, ref.split('#')[0])

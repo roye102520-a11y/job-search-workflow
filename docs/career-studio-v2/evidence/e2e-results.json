@@ -1,0 +1,64 @@
+{
+  "suite": "V2 real Chromium E2E",
+  "checks": [
+    {
+      "name": "public preview labels scope and five entrances",
+      "status": "passed"
+    },
+    {
+      "name": "five job seeker scenarios expose start result and next step",
+      "status": "passed"
+    },
+    {
+      "name": "public role switching and review are synthetic only",
+      "status": "passed"
+    },
+    {
+      "name": "empty local case begins with intake and recovers from invalid material",
+      "status": "passed"
+    },
+    {
+      "name": "complete local case offers direct JD and goal preferences",
+      "status": "passed"
+    },
+    {
+      "name": "JD requirements and all evidence are inspectable",
+      "status": "passed"
+    },
+    {
+      "name": "generation retains review state and reuses exact repeat",
+      "status": "passed"
+    },
+    {
+      "name": "manual direction cannot bypass unsupported role",
+      "status": "passed"
+    },
+    {
+      "name": "board has six states and generated material never becomes submitted",
+      "status": "passed"
+    },
+    {
+      "name": "BOSS screening refreshes saved data and shows unknown verification",
+      "status": "passed"
+    },
+    {
+      "name": "mobile responsive layout and keyboard focus",
+      "status": "passed"
+    },
+    {
+      "name": "service worker caches only shell and no personal preview",
+      "status": "passed"
+    },
+    {
+      "name": "input keyboard focus meets declared ring",
+      "status": "passed"
+    },
+    {
+      "name": "no browser JavaScript errors",
+      "status": "passed"
+    }
+  ],
+  "total": 14,
+  "passed": 14,
+  "synthetic_only": true
+}

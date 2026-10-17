@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-15T04:26:25.651964+00:00",
+  "title": "Career Studio · 经典界面（48ca8e4 视觉 / V2 功能）",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "本地 / 公开页蓝色"
+      },
+      "jd-green": {
+        "role": "primary",
+        "displayName": "JD 深绿"
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "经典灰白"
+      }
+    },
+    "typographyMeta": {
+      "headline-local": {
+        "displayName": "原本地主标题",
+        "purpose": "恢复用户选定的历史视觉"
+      }
+    },
+    "roundedMeta": {},
+    "spacingMeta": {}
+  },
+  "components": [
+    {
+      "name": "Classic primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "原蓝色胶囊按钮",
+      "html": "<button class=\"ds-classic-primary\" type=\"button\">分析新岗位</button>",
+      "css": ".ds-classic-primary{background:#0066cc;color:white;border:0;border-radius:24px;padding:12px 21px;font:14px/1.6 -apple-system,sans-serif;cursor:pointer}.ds-classic-primary:focus-visible{outline:3px solid #0066cc;outline-offset:3px}"
+    },
+    {
+      "name": "Classic navigation",
+      "kind": "nav",
+      "refersTo": "navigation-local-current",
+      "description": "原六项导航与深色选中胶囊",
+      "html": "<nav class=\"ds-classic-nav\" aria-label=\"求职工作区\"><button aria-current=\"page\">总览</button><button>素材与作品集</button><button>JD 简历</button><button>投递进度</button><button>面试复盘</button><button>个人网站</button></nav>",
+      "css": ".ds-classic-nav{display:flex;gap:12px;overflow-x:auto;background:#f5f5f7;padding:12px 20px}.ds-classic-nav button{border:0;border-radius:20px;padding:8px 17px;background:transparent;color:#6e6e73;white-space:nowrap}.ds-classic-nav [aria-current]{background:#1d1d1f;color:white}"
+    },
+    {
+      "name": "JD evidence review",
+      "kind": "custom",
+      "description": "原两栏主体下面的新证据审阅区",
+      "html": "<section class=\"ds-jd-review\"><h2>要求、证据与选材</h2><p>原始事实、来源与未选原因仍可追溯。</p></section>",
+      "css": ".ds-jd-review{background:white;color:#222d27;border:1px solid #dfe5dd;border-radius:16px;padding:26px;font:14px/1.65 -apple-system,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "用户确认的 48ca8e4 历史视觉，保留 V2 功能与安全",
+    "overview": "恢复经典灰白、蓝色、大标题、圆角卡片和六项导航。JD 保留原米白深绿及两栏主体。",
+    "keyCharacteristics": [
+      "历史视觉是恢复基准",
+      "业务逻辑不回退",
+      "证据与选材渐进展示"
+    ],
+    "rules": [
+      {
+        "name": "Preserve approved classic UI",
+        "body": "不得再次用五项导航、暖绿任务首页或三栏 JD 主体替换用户确认的历史布局。",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "保留事实与来源、独立材料和六阶段状态",
+      "新增能力适配到旧界面"
+    ],
+    "donts": [
+      "整仓回退",
+      "删除新版能力",
+      "自动生产部署"
+    ]
+  }
+}
