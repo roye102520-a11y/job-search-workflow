@@ -45,6 +45,31 @@ class V2HTTPTests(unittest.TestCase):
         self.assertEqual(self.request('/api/selection',{**payload,'selection_budget':True})[0],400)
         self.assertEqual(self.request('/api/selection',payload)[0],200)
 
+    def test_selected_projects_roundtrip_and_empty_selection(self):
+        payload={'jd':'【合成】岗位职责：产品发现、需求分析、Prompt 设计、LLM 评测和产品路径优化。','title':'产品助理','family':'product-operations'}
+        status,body=self.request('/api/selection',{**payload,'selected_project_ids':['project-reflection']})
+        self.assertEqual(status,200,body)
+        result=json.loads(body)
+        selected={row['entry_id'] for row in result['selection']['candidates'] if row['kind']=='project' and row['selected']}
+        self.assertEqual(selected,{'project-reflection'})
+        status,body=self.request('/api/selection',{**payload,'selected_project_ids':[]})
+        self.assertEqual(status,200,body)
+        result=json.loads(body)
+        self.assertFalse(any(row['selected'] for row in result['selection']['candidates'] if row['kind']=='project'))
+        self.assertEqual(self.request('/api/selection',{**payload,'selected_project_ids':['project-reflection','project-reflection']})[0],400)
+        self.assertEqual(self.request('/api/selection',{**payload,'selected_project_ids':['not-a-project']})[0],400)
+
+    def test_conservative_ux_research_direction_is_available_through_http(self):
+        status,body=self.request('/api/bootstrap')
+        self.assertEqual(status,200,body)
+        self.assertIn('ux-research',json.loads(body)['families'])
+        payload={'jd':'【合成】UX Research Assistant supports user research, interview synthesis, research operations, user journeys and usability testing.','title':'UX Research Assistant','family':'ux-research'}
+        status,body=self.request('/api/selection',payload)
+        self.assertEqual(status,200,body)
+        result=json.loads(body)
+        self.assertEqual(result['routing']['family'],'ux-research')
+        self.assertIn('正式用户研究', ' '.join(result['routing']['warnings']))
+
     def test_public_demo_does_not_embed_private_data(self):
         status,body=self.request('/demo');self.assertEqual(status,200);self.assertNotIn('13800000000',body.decode());self.assertIn('合成数据演示',body.decode())
         self.assertEqual(self.request('/demo/preview.js')[0],200)

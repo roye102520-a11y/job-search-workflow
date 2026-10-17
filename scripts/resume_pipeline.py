@@ -21,19 +21,22 @@ from job_data import canonical_fragment
 from jd_requirements import assess as assess_requirements, summary as requirement_summary
 from evidence_quality import positive_clauses, exclusion_reason
 from evidence_selection import decisions
+from project_matching import load_project_profiles, fallback_profiles, match_projects, profile_digest
 
 FAMILIES = {
     'user-operations': '用户 / 客户运营',
     'ai-content-operations': 'AI 知识库 / 内容运营',
     'implementation-support': '项目交付 / 实施支持',
     'product-operations': '产品助理 / 产品运营',
+    'ux-research': 'UX Research｜保守匹配',
 }
-RULES_VERSION = 3
+RULES_VERSION = 4
 TERMS = {
     'user-operations': ['用户运营', '客户运营', '客户成功', '用户服务', '客户服务', '学员', '用户分层', 'customer success', 'customer operations', 'customer support', 'customer service', 'onboarding'],
     'ai-content-operations': ['知识库', '内容运营', '文档清洗', '结构化', '问答', '质量检查', '离线评测', 'knowledge base', 'content operations', 'data annotation', 'ocr'],
     'implementation-support': ['实施', '项目助理', '项目交付', '项目经理', '验收', '进度', '操作指南', 'implementation', 'project assistant', 'delivery support', 'project coordinator'],
     'product-operations': ['产品助理', '产品运营', '产品经理', '用户路径', '信息分类', '竞品', '需求文档', 'product assistant', 'product operations', 'product manager', 'prd'],
+    'ux-research': ['用户研究', '用户访谈', '可用性测试', '研究运营', '研究助理', 'user research', 'ux research', 'research operations', 'usability test', 'interview synthesis'],
 }
 
 def require(ok, message):
@@ -139,8 +142,10 @@ def route(jd, title='', requested='auto'):
         if requested == 'auto':
             return {**result, 'family': None, 'label': '方向待确认', 'outcome': 'ambiguous', 'warnings': result['uncertainties']}
     family = primary if requested == 'auto' else requested
+    ux_warning = (['该方向仅匹配用户反馈、问题梳理和产品设计的相邻证据；不代表具备正式用户研究、招募或可用性测试经验。']
+                  if family == 'ux-research' else [])
     return {**result, 'family': family, 'label': FAMILIES[family], 'outcome': 'draft',
-            'warnings': result['uncertainties'] + ([] if requested == 'auto' else ['采用用户指定方向；硬门槛仍按原始 JD 判断。'])}
+            'warnings': result['uncertainties'] + ux_warning + ([] if requested == 'auto' else ['采用用户指定方向；硬门槛仍按原始 JD 判断。'])}
 
 def load_evidence(case):
     path = local(case, 'resume-evidence.json')
@@ -273,11 +278,19 @@ def preview_selection(case, request):
     data = load_evidence(Path(case).resolve())
     routing = route(request['jd'], request['title'], request.get('family', 'auto'))
     requirements = assess_requirements(request['jd'], data)
-    audit = {'candidates': []}
-    if routing['family']:
-        _, _, audit = decisions(data, routing['family'], request['jd'], request.get('project_priorities', []), request.get('selection_budget', 900))
+    profiles, profile_warnings = load_project_profiles(case)
+    if not profiles:
+        profiles = fallback_profiles(data)
+    project_matching = match_projects(data, request['jd'], profiles, profile_warnings, routing['family'])
+    project_matching['profile_digest'] = profile_digest(case)
+    selected_project_ids = request.get('selected_project_ids', project_matching['default_selected_ids'])
+    project_matching['selected_project_ids'] = selected_project_ids
+    project_matching['selection_mode'] = 'manual' if 'selected_project_ids' in request else 'recommended_default'
+    _, _, audit = decisions(data, routing['family'] or '', request['jd'], request.get('project_priorities', []),
+                            request.get('selection_budget', 900), selected_project_ids)
     return {'routing': routing, 'requirements': requirements, 'requirement_summary': requirement_summary(requirements),
-            'selection': audit, 'projects': [{'id': e['id'], 'title': e['title_zh']} for e in data['entries'] if e['kind'] == 'project'],
+            'selection': audit, 'project_matching': project_matching,
+            'projects': [{'id': e['id'], 'title': e['title_zh']} for e in data['entries'] if e['kind'] == 'project'],
             'unconfirmed': data.get('unconfirmed', []), 'metadata_resolution': metadata, 'warnings': warnings,
             'evidence_digest': sha(Path(case) / 'resume-evidence.json'), 'status': 'preparing'}
 
@@ -298,7 +311,16 @@ def generate(case, request, font=None):
         require(parts.scheme in ('https', 'http') and parts.hostname and not parts.username and not parts.password, '岗位链接格式错误')
     existing_package = existing_package_for_url(case, url) if url else None
     data = load_evidence(case)
-    fingerprint = hashlib.sha256(json.dumps({'request': request, 'evidence': sha(case / 'resume-evidence.json'), 'policy': RULES_VERSION, 'font': str(font or '')}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    routing = route(request['jd'], request['title'], request.get('family', 'auto'))
+    profiles, profile_warnings = load_project_profiles(case)
+    if not profiles:
+        profiles = fallback_profiles(data)
+    project_matching = match_projects(data, request['jd'], profiles, profile_warnings, routing['family'])
+    project_matching['profile_digest'] = profile_digest(case)
+    if 'selected_project_ids' in request:
+        project_matching['selected_project_ids'] = request['selected_project_ids']
+        project_matching['selection_mode'] = 'manual'
+    fingerprint = hashlib.sha256(json.dumps({'request': request, 'evidence': sha(case / 'resume-evidence.json'), 'policy': RULES_VERSION, 'project_policy': project_matching['policy_version'], 'project_profile': project_matching['profile_digest'], 'font': str(font or '')}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     for prior_path in sorted((case / 'generated').glob('*/result.json')):
         try:
             prior = json.loads(prior_path.read_text(encoding='utf-8'))
@@ -306,7 +328,6 @@ def generate(case, request, font=None):
             continue
         if prior.get('generation_fingerprint') == fingerprint and all(local(case, f).is_file() for f in prior.get('files', {}).values()):
             return {**prior, 'reused': True}
-    routing = route(request['jd'], request['title'], request.get('family', 'auto'))
     family = routing['family']
     requirements = assess_requirements(request['jd'], data)
     requirements_summary = requirement_summary(requirements)
@@ -321,7 +342,8 @@ def generate(case, request, font=None):
               'output_dir': target.relative_to(case).as_posix(), 'files': {}, 'selected_bullet_ids': [], 'status': 'preparing',
               'requirements': requirements, 'requirement_summary': requirements_summary,
               'metadata_resolution': metadata_resolution, 'routing': routing, 'generation_fingerprint': fingerprint,
-              'rules_version': RULES_VERSION, 'reused': False}
+              'rules_version': RULES_VERSION, 'project_matching': project_matching,
+              'selected_project_ids': request.get('selected_project_ids'), 'reused': False}
     result['warnings'].extend(metadata_warnings)
     if existing_package:
         result['warnings'].append('该官网链接已有岗位包：' + existing_package.relative_to(case).as_posix() + '。本次只生成新的审阅材料，不建立第二个投递清单。')
@@ -340,7 +362,7 @@ def generate(case, request, font=None):
             write(stage / 'match.md', '\n'.join(requirement_lines) + '\n')
             result['files']['match'] = (target / 'match.md').relative_to(case).as_posix()
         else:
-            selected, strongest, selection_audit = decisions(data, family, request['jd'], request.get('project_priorities', []), request.get('selection_budget', 900))
+            selected, strongest, selection_audit = decisions(data, family, request['jd'], request.get('project_priorities', []), request.get('selection_budget', 900), request.get('selected_project_ids'))
             require(bool(selected), '当前没有可使用的已核对事实，请先确认事实与冲突')
             result['selection'] = selection_audit
             result['selected_bullet_ids'] = [b['id'] for e in selected for b in e['bullets']]
@@ -361,7 +383,7 @@ def generate(case, request, font=None):
                     if '一页' not in str(exc) or effective_budget <= 300:
                         raise
                     effective_budget = max(300, effective_budget - 75)
-                    selected, strongest, selection_audit = decisions(data, family, request['jd'], request.get('project_priorities', []), effective_budget)
+                    selected, strongest, selection_audit = decisions(data, family, request['jd'], request.get('project_priorities', []), effective_budget, request.get('selected_project_ids'))
                     lines = text_lines(data['person'], selected, strongest, request['title'], lang, family)
             result['selected_bullet_ids'] = [b['id'] for e in selected for b in e['bullets']]
             result['selection'] = selection_audit
@@ -404,7 +426,7 @@ def generate(case, request, font=None):
                     review += ['- ' + bullet['id'] + '：' + bullet['zh'], '  追问：你本人完成了哪一步？能展示什么材料？数字统计范围是什么？哪些是自测、哪些是真实用户结果？']
             review += ['', '## 缓存待确认项（不代表每项都是此 JD 必填）', '', json.dumps(data.get('unconfirmed', []), ensure_ascii=False, indent=2)]
             write(stage / 'review.md', '\n'.join(review) + '\n')
-            json_write(stage / 'selection.json', {'family': family, 'selected_bullet_ids': result['selected_bullet_ids'], 'source_digests': data['sources'], 'evidence_digest': sha(case / 'resume-evidence.json'), 'selection': selection_audit, 'pdf_checks': pdf_checks, 'routing': routing, 'requirements': requirements, 'requirement_summary': requirements_summary, 'external_actions': []})
+            json_write(stage / 'selection.json', {'family': family, 'selected_bullet_ids': result['selected_bullet_ids'], 'selected_project_ids': request.get('selected_project_ids'), 'project_matching': project_matching, 'source_digests': data['sources'], 'evidence_digest': sha(case / 'resume-evidence.json'), 'selection': selection_audit, 'pdf_checks': pdf_checks, 'routing': routing, 'requirements': requirements, 'requirement_summary': requirements_summary, 'external_actions': []})
             for key, name_ in {'pdf': pdf_name, 'markdown': 'resume-' + lang + '.md', 'match': 'match.md', 'email': 'email.md', 'review': 'review.md'}.items():
                 result['files'][key] = (target / name_).relative_to(case).as_posix()
             if url and not existing_package:

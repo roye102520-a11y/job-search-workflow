@@ -18,6 +18,7 @@ FAMILIES = {
     'ai-content-operations': 'AI 知识库 / 内容运营',
     'implementation-support': '项目交付 / 实施支持',
     'product-operations': '产品助理 / 产品运营',
+    'ux-research': 'UX Research｜保守匹配',
 }
 MAX_BODY = 256 * 1024
 ALLOWED_EXTENSIONS = {'.pdf', '.md', '.txt', '.json', '.csv'}
@@ -356,11 +357,19 @@ class StudioHandler(BaseHTTPRequestHandler):
                     return
                 self.workspace_write(endpoint, request)
                 return
-            allowed = {'jd', 'title', 'company', 'url', 'language', 'family', 'project_priorities', 'selection_budget'}
+            allowed = {'jd', 'title', 'company', 'url', 'language', 'family', 'project_priorities', 'selection_budget', 'selected_project_ids'}
             if not isinstance(request, dict) or set(request) - allowed:
                 raise ValueError('输入包含不支持的字段')
-            if any(not isinstance(value, str) for key, value in request.items() if key not in {'project_priorities', 'selection_budget'}):
+            if any(not isinstance(value, str) for key, value in request.items() if key not in {'project_priorities', 'selection_budget', 'selected_project_ids'}):
                 raise ValueError('JD 与岗位信息须为文字')
+            if 'selected_project_ids' in request and not isinstance(request['selected_project_ids'], list):
+                raise ValueError('本版项目选择必须是项目 ID 列表')
+            if 'selected_project_ids' in request and (
+                    any(not isinstance(value, str) for value in request['selected_project_ids']) or
+                    len(request['selected_project_ids']) != len(set(request['selected_project_ids']))):
+                raise ValueError('本版项目选择必须是不同的项目 ID')
+            if 'project_priorities' in request and not isinstance(request['project_priorities'], list):
+                raise ValueError('项目优先级必须是经历 ID 列表')
             if not request.get('jd', '').strip():
                 raise ValueError('请先粘贴岗位 JD 正文')
             request.setdefault('language', 'zh')
