@@ -115,10 +115,11 @@ function renderOpportunityJobs(){
     const qualificationStatus=qualification.status||'needs_confirmation';
     const canPrepare=verification.status==='verified_open'&&['A','B'].includes(match.grade)
       &&(category!=='internship'||qualificationStatus==='eligible')
+      &&match.global_work_eligibility?.status!=='unknown'
       &&pay.paid_status!=='unpaid'&&typeof job.jd==='string'&&job.jd.trim().length>=40
       &&!['submitted','assessment','interview','offer','rejected','withdrawn','closed'].includes(application.status);
     const prepare=node(application.resume_variant?'重新生成中英审阅材料':'生成中英审阅材料','secondary');prepare.type='button';prepare.disabled=!canPrepare;
-    prepare.title=canPrepare?'仅在本地生成简历与邮件草稿；不会发送或提交。':'需完整 JD、当前官网核验、A/B 级匹配、符合的毕业资格及非无薪条件。';
+    prepare.title=canPrepare?'仅在本地生成简历与邮件草稿；不会发送或提交。':match.global_work_eligibility?.status==='unknown'?'海外工作许可、签证或远程雇佣资格需先核实。':'需完整 JD、当前官网核验、A/B 级匹配、符合的毕业资格及非无薪条件。';
     prepare.addEventListener('click',async()=>{
       prepare.disabled=true;prepare.textContent='正在生成本地审阅材料…';
       try{const result=await api('/api/opportunities/prepare',{job_keys:[job.job_key]});const first=result.jobs?.[0];$('discovery-run-status').textContent=first?'已为「'+first.company+' · '+first.title+'」生成本地审阅材料；未发送邮件、未提交申请。':'材料准备完成；未发送邮件、未提交申请。';await refresh();}

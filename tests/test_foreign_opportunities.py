@@ -40,6 +40,11 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
         self.case = Path(self.temp.name) / 'case'
         shutil.copytree(FIXTURE, self.case)
 
+    def test_response_limit_is_larger_only_for_reviewed_lever_feeds(self):
+        self.assertEqual(jobs.response_limit('https://api.lever.co/v0/postings/rws?mode=json'), jobs.MAX_LEVER_FEED_BYTES)
+        self.assertEqual(jobs.response_limit('https://api.lever.co/v0/postings/unknown?mode=json'), jobs.MAX_BYTES)
+        self.assertEqual(jobs.response_limit(URL), jobs.MAX_BYTES)
+
     def evidence(self, **person):
         return {'person': {'education_zh': '英语本科，已毕业', 'education_complete': True, **person}, 'entries': []}
 
@@ -342,6 +347,12 @@ RWS is an equal opportunity employer.'''
         hourly = jobs.compensation_details({'jd': 'Pay: Up to 6 USD/hour.'})
         self.assertEqual(hourly['paid_status'], 'paid')
         self.assertEqual(hourly['published'], 'Pay: Up to 6 USD/hour.')
+        company_overview = jobs.compensation_details({'jd': 'About us: We are a global SaaS company. We discuss salary philosophy and reached $3B revenue.'})
+        self.assertEqual(company_overview['paid_status'], 'unknown')
+        self.assertEqual(company_overview['published'], '未知（来源未披露）')
+        competitive = jobs.compensation_details({'jd': 'Salary: Competitive. Our company revenue exceeded $3B.'})
+        self.assertEqual(competitive['paid_status'], 'unknown')
+        self.assertEqual(competitive['published'], 'Salary: Competitive.')
         self.assertEqual(jobs.work_arrangement({'location': 'Shanghai', 'jd': 'Responsibilities: organize knowledge articles.'})['status'], 'unknown')
 
     def test_internship_graduate_eligibility_requires_current_official_acceptance(self):

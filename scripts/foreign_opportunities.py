@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit, urljoin, quote
+from urllib.parse import urlsplit, urljoin, quote, parse_qsl
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 import job_data as records
@@ -22,6 +22,7 @@ from career_workspace import local_file, read_json
 from jd_requirements import assess
 
 MAX_BYTES = 2 * 1024 * 1024
+MAX_LEVER_FEED_BYTES = 16 * 1024 * 1024
 SCORE_LABEL = '规则识别的证据覆盖分，不是录取概率；所有结果均需人工复核'
 MATCH_RULES_VERSION = '2026-10-17.2'
 # Exact tenants, never a wildcard such as *.myworkdayjobs.com.
@@ -100,6 +101,15 @@ def network_url(url):
         raise ValueError('拒绝非公网地址')
 
 
+def response_limit(url):
+    parsed = urlsplit(url)
+    if (parsed.hostname == 'api.lever.co'
+            and re.fullmatch(r'/v0/postings/(?:weloglobal|getwingapp|veeva|rws)', parsed.path)
+            and dict(parse_qsl(parsed.query)).get('mode') == 'json'):
+        return MAX_LEVER_FEED_BYTES
+    return MAX_BYTES
+
+
 class Redirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         network_url(newurl)
@@ -112,8 +122,9 @@ def fetch(url):
     network_url(url)
     request = Request(url, headers={'User-Agent': 'CareerStudio/1.0 (read-only job research)', 'Accept': 'application/json,text/html'})
     with build_opener(Redirects()).open(request, timeout=15) as response:
-        raw = response.read(MAX_BYTES + 1)
-        if len(raw) > MAX_BYTES:
+        limit = response_limit(url)
+        raw = response.read(limit + 1)
+        if len(raw) > limit:
             raise ValueError('官方页面超过读取上限，需人工核验')
         return response.status, response.url, raw.decode('utf-8')
 
@@ -277,8 +288,12 @@ def compensation_details(job, unpaid=False):
     jd = str(job.get('jd') or '')
     source_value = job.get('compensation')
     lines = [str(line).strip() for line in jd.splitlines() if str(line).strip()]
-    pay_lines = [line for line in lines if re.search(r'薪资|薪酬|工资|津贴|补贴|salary|compensation|stipend|pay\s*(?:range)?\s*:|paid internship|unpaid internship|unpaid intern', line, re.I)
-                 or re.search(r'(?:CNY|RMB|USD|EUR|GBP|¥|￥)\s*\d|\d+(?:\.\d+)?\s*(?:CNY|RMB|USD|EUR|GBP|k|万)(?:\s*/\s*(?:hour|hr|month|year|小时|月|年))?|\$\s*\d|\d+(?:\.\d+)?\s*(?:k|万)\s*(?:-|~|至|–)', line, re.I)]
+    pay_header = re.compile(r'^\s*(?:薪资|薪酬|工资|津贴|补贴|salary(?: range)?|compensation|stipend|pay(?: range)?)\s*[:：]', re.I)
+    money = r'(?:(?:CNY|RMB|USD|EUR|GBP|\$|¥|￥)\s*\d[\d,.]*|\d[\d,.]*\s*(?:CNY|RMB|USD|EUR|GBP|\$|¥|￥))'
+    pay_rate = re.compile(money + r'(?:\s*(?:-|~|至|–)\s*' + money + r')?\s*(?:/\s*(?:hour|hr|month|year|小时|月|年)|per\s+(?:hour|month|year)|每(?:小时|月|年)|月薪|年薪)', re.I)
+    explicit_paid = re.compile(r'\bpaid\s+(?:internship|intern|position|role|job|employment)\b|\b(?:internship|intern)\b.{0,45}\bpaid\b|实习津贴|提供薪酬|有薪实习|有薪岗位', re.I)
+    pay_lines = [line for line in lines if pay_header.search(line) or explicit_paid.search(line) or pay_rate.search(line)
+                 or re.search(r'\bunpaid\s+(?:internship|intern|position|role|job|opportunity)\b|无薪实习|无薪岗位|不提供薪资', line, re.I)]
     if isinstance(source_value, str):
         published = source_value.strip()
     elif isinstance(source_value, (int, float)):
@@ -296,12 +311,15 @@ def compensation_details(job, unpaid=False):
         published = ' · '.join(parts)[:240]
     else:
         published = ''
-    published = published or (pay_lines[0][:240] if pay_lines else '')
+    if not published and pay_lines:
+        line = pay_lines[0]
+        if pay_header.search(line):
+            line = re.split(r'(?<=[.;。])\s+', line, maxsplit=1)[0]
+        published = line[:240]
     if unpaid:
         return {'paid_status': 'unpaid', 'published': published or '无薪（来源明确说明）'}
-    paid = bool(re.search(r'\bpaid\s+(?:internship|intern|position|role)\b|\b(?:internship|intern)\b.{0,45}\bpaid\b|\b(?:salary|compensation|stipend|pay range)\b|薪资|薪酬|工资|实习津贴|提供薪酬|有薪', jd, re.I)
-                or any(re.search(r'\bpay\s*(?:range)?\s*:\s*[^\n]*\d|(?:USD|EUR|GBP)\s*\d|\d+(?:\.\d+)?\s*(?:USD|EUR|GBP)\s*/\s*(?:hour|hr|month|year)|\$\s*\d', line, re.I) for line in pay_lines))
-    if not paid and ((isinstance(source_value, str) and source_value.strip()) or isinstance(source_value, (int, float, dict))):
+    paid = bool(explicit_paid.search(jd) or any(pay_rate.search(line) for line in pay_lines))
+    if not paid and published and ((isinstance(source_value, str) and source_value.strip()) or isinstance(source_value, (int, float, dict))):
         paid = True
     return {'paid_status': 'paid' if paid else 'unknown',
             'published': published or '未知（来源未披露）'}
@@ -395,6 +413,8 @@ def matching(case, job):
     blockers = [r for r in required if r['status'] != 'supported']
     pref = read_json(case, 'search-preferences.json', {})
     if not isinstance(pref, dict): pref = {}
+    strategy = pref.get('job_search_strategy') if isinstance(pref.get('job_search_strategy'), dict) else {}
+    global_scope = strategy.get('geographic_scope') == 'global'
     excluded_names = {str(c).strip().casefold() for c in pref.get('excluded_companies', []) if isinstance(c, str)}
     excluded = job['company'].strip().casefold() in excluded_names
     full = sum(3 if r['level'] == 'required' else 1 for r in requirements)
@@ -414,10 +434,13 @@ def matching(case, job):
     china_remote = remote and bool(re.search(r'\bChina\b|中国', job['location'] + ' ' + jd, re.I))
     if remote:
         flags.append('需确认远程雇佣国家、合同主体及对应工作许可。')
-    if not china_location and not china_remote:
-        flags.append('地点尚未证明符合上海、苏州或中国远程范围。')
-    elif not preferred_city and not china_remote:
-        flags.append('地点在中国但不属于当前优先的上海、苏州或中国远程。')
+    if not global_scope:
+        if not china_location and not china_remote:
+            flags.append('地点尚未证明符合上海、苏州或中国远程范围。')
+        elif not preferred_city and not china_remote:
+            flags.append('地点在中国但不属于当前优先的上海、苏州或中国远程。')
+    elif global_scope:
+        flags.append('全球岗位：需核实该国家的工作许可/签证担保、雇佣主体及搬迁支持；远程岗位还需核实是否允许从实际居住地工作。')
     if excluded:
         hard_reasons.append('企业命中本人屏蔽名单。')
 
@@ -461,7 +484,6 @@ def matching(case, job):
         salary['reason'] = '官方披露原文已记录；币种或计价周期与个人薪资底线不同/未结构化，不进行换算或默认判定符合。'
     internship_status = internship_qualification(job, requirements, source_status, category)
     growth = internship_growth(job, category)
-    strategy = pref.get('job_search_strategy') if isinstance(pref.get('job_search_strategy'), dict) else {}
     if category == 'internship':
         inquiry_context = strategy.get('graduation_context_for_inquiry')
         internship_status['inquiry_context'] = str(inquiry_context)[:100] if isinstance(inquiry_context, str) and inquiry_context.strip() else '已完成本科学业（毕业年限可补充）'
@@ -495,6 +517,12 @@ def matching(case, job):
     else:
         flags.append('目前没有足够的直接个人事实覆盖岗位要求。')
 
+    global_work_conditions = [item for item in requirements
+                             if re.search(r'工作许可|work authori[sz]ation|right to work|visa|签证', item.get('text', ''), re.I)]
+    global_work_supported = bool(global_work_conditions) and all(item.get('status') == 'supported' for item in global_work_conditions)
+    global_work_status = {'status': 'not_applicable' if not global_scope else 'supported' if global_work_supported else 'unknown',
+                          'reason': '逐项工作许可条件均有当前、地区化事实支持。' if global_work_supported else
+                                    '尚无当前且对应工作地区的许可证据；需核实合法雇佣、担保、远程居住地或搬迁条件。'}
     grade_reasons = []
     if excluded or source_status == 'closed' or internship_status['status'] == 'ineligible' or any(r['status'] == 'not_met' for r in blockers) or salary['status'] == 'not_met':
         grade = 'D'
@@ -505,15 +533,15 @@ def matching(case, job):
     elif unpaid:
         grade = 'C'
         grade_reasons.extend(flags)
-    elif error or blockers or remote or (not china_location and not china_remote) or salary['status'] != 'supported' or internship_status['status'] == 'needs_confirmation' or (category == 'internship' and growth['status'] != 'supported'):
+    elif error or blockers or remote or (global_scope and not global_work_supported) or (not global_scope and not china_location and not china_remote) or salary['status'] != 'supported' or internship_status['status'] == 'needs_confirmation' or (category == 'internship' and growth['status'] != 'supported'):
         grade = 'B'
         grade_reasons.extend(flags)
-    elif (not preferred_city and not china_remote) or target_priority is None or not direct_refs or not evidence_kinds.intersection({'work', 'project'}):
+    elif (not global_scope and not preferred_city and not china_remote) or target_priority is None or not direct_refs or not evidence_kinds.intersection({'work', 'project'}):
         grade = 'C'
         grade_reasons.append('岗位硬条件已核验，但地点、目标方向或真实工作/项目证据关联不足。')
     else:
         grade = 'A'
-        grade_reasons.append('官方状态、主要硬条件、工作地点与薪资底线均有当前证据支持；仍需本人审核申请材料。')
+        grade_reasons.append(('官方状态、主要硬条件、全球雇佣资格与薪资底线均有当前证据支持；' if global_scope else '官方状态、主要硬条件、工作地点与薪资底线均有当前证据支持；') + '仍需本人审核申请材料。')
     return dict(grade=grade, grade_reasons=list(dict.fromkeys(grade_reasons)),
                 requirements=requirements, score=score, score_label=SCORE_LABEL,
                 priority={'A': 'apply_review', 'B': 'verify_first', 'C': 'hold', 'D': 'exclude', 'U': 'unverified'}[grade],
@@ -521,6 +549,7 @@ def matching(case, job):
                 target_priority=target_priority, target_label=target_label,
                 employment_category=category, internship_qualification=internship_status,
                 internship_growth=growth, work_mode=work_mode, posted_compensation=compensation,
+                global_work_eligibility=global_work_status,
                 evidence_by_kind=evidence_by_kind,
                 evidence_refs=direct_refs, evidence_error=error, routing=route(jd, job['title']),
                 eligibility='not_met' if grade == 'D' else 'needs_review', rules_version=MATCH_RULES_VERSION,
@@ -691,6 +720,8 @@ def discover(case, tenant, limit=10, transport=None):
     if not isinstance(jobs, list): raise ValueError('官方职位列表格式有误')
     pref = read_json(case, 'search-preferences.json', {})
     if not isinstance(pref, dict): pref = {}
+    strategy = pref.get('job_search_strategy') if isinstance(pref.get('job_search_strategy'), dict) else {}
+    global_scope = strategy.get('geographic_scope') == 'global'
     excluded = {str(c).casefold() for c in pref.get('excluded_companies', [])}
     candidates = []
     senior_title = re.compile(r'\b(?:senior|staff|principal|lead|director|head of)\b|高级|资深|总监', re.I)
@@ -712,9 +743,9 @@ def discover(case, tenant, limit=10, transport=None):
         # A remote role may be in scope even when its listing's location field
         # is an office city; require an explicit China remote statement in the
         # source. Generic remote is not enough for legal-employment screening.
-        if not city_or_country and not remote_in_china:
+        if not global_scope and not city_or_country and not remote_in_china:
             continue
-        if re.search(r'remote|远程|work from home|居家办公', location, re.I) and not re.search(r'China|中国', location + '\n' + description, re.I):
+        if not global_scope and re.search(r'remote|远程|work from home|居家办公', location, re.I) and not re.search(r'China|中国', location + '\n' + description, re.I):
             continue
         priority, _, _ = target_alignment({'title': title, 'jd': searchable}, pref)
         if not priority:
@@ -731,8 +762,10 @@ def discover(case, tenant, limit=10, transport=None):
     candidates.sort(key=lambda row: row[:3])
     # Import performs a second live read, not a verification of feed snippets.
     imported = [import_url(case, {'url': item['hostedUrl']}, get) for _, _, _, item in candidates[:limit]]
+    scope_note = ('按全球求职策略和目标方向排序；海外工作许可、签证担保、雇佣主体、搬迁或远程居住地仍逐岗核验。'
+                  if global_scope else '按当前案例岗位方向与地点偏好排序；资格、薪资、工作许可和官网申请状态仍逐岗核验。')
     return {'results': imported, 'mode': 'discovery-only',
-            'note': '按当前案例岗位方向与地点偏好排序；资格、薪资、工作许可和官网申请状态仍逐岗核验。仅覆盖已支持的公开 Lever 租户。'}
+            'note': scope_note + '仅覆盖已支持的公开 Lever 租户。'}
 
 
 def main():

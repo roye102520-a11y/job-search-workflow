@@ -104,9 +104,93 @@ class DailyDiscoveryTests(unittest.TestCase):
         self.assertEqual(result['external_actions'], {'emails_sent': 0, 'applications_submitted': 0})
         self.assertEqual(result['scheduler'], 'not_configured')
 
-    def test_daily_discovery_rejects_more_than_ten_and_unreviewed_tenants(self):
-        with self.assertRaises(ValueError): daily_job_search.discover_daily(self.case, limit=11)
+    def test_daily_discovery_caps_at_one_hundred_and_rejects_unreviewed_tenants(self):
+        with self.assertRaises(ValueError): daily_job_search.discover_daily(self.case, limit=101)
         with self.assertRaises(ValueError): daily_job_search.discover_daily(self.case, tenants=['unknown'])
+
+    def test_daily_discovery_never_requests_more_than_ten_from_one_tenant(self):
+        calls = []
+        def discover(case, tenant, limit, transport=None):
+            calls.append((tenant, limit))
+            return {'results': []}
+        with patch.object(foreign_opportunities, 'discover', side_effect=discover), \
+             patch.object(foreign_opportunities, 'list_jobs', return_value={'jobs': []}):
+            result = daily_job_search.discover_daily(self.case, limit=100)
+        self.assertEqual(calls, [(tenant, 10) for tenant in daily_job_search.DEFAULT_TENANTS])
+        self.assertEqual(result['results_count'], 0)
+        self.assertIn('不能满足 50–100 条', result['coverage_note'])
+
+    def test_daily_prepare_only_generates_for_verified_and_eligible_jobs(self):
+        rows = [
+            {'job_key': 'opportunity-' + 'a' * 20, 'company': 'A', 'title': 'AI Ops',
+             'verification_status': 'verified_open', 'grade': 'A', 'employment_category': 'full_time',
+             'posted_compensation': {'paid_status': 'paid'}},
+            {'job_key': 'opportunity-' + 'b' * 20, 'company': 'B', 'title': 'Intern',
+             'verification_status': 'verified_open', 'grade': 'B', 'employment_category': 'internship',
+             'internship_qualification': {'status': 'needs_confirmation'}, 'posted_compensation': {'paid_status': 'paid'}},
+            {'job_key': 'opportunity-' + 'c' * 20, 'company': 'C', 'title': 'Closed',
+             'verification_status': 'closed', 'grade': 'D', 'employment_category': 'full_time',
+             'posted_compensation': {'paid_status': 'paid'}},
+            {'job_key': 'opportunity-' + 'e' * 20, 'company': 'E', 'title': 'Overseas Remote',
+             'verification_status': 'verified_open', 'grade': 'B', 'employment_category': 'full_time',
+             'global_work_eligibility': {'status': 'unknown'}, 'posted_compensation': {'paid_status': 'paid'}},
+        ]
+        discovery = {'run_at': '2026-10-17T00:00:00+00:00', 'results_count': 4, 'jobs': rows,
+                     'sources': [], 'external_actions': {'emails_sent': 0, 'applications_submitted': 0},
+                     'scheduler': 'not_configured', 'coverage_note': 'synthetic'}
+        with patch.object(daily_job_search, 'discover_daily', return_value=discovery), \
+             patch.object(daily_job_search, 'prepare_selected', return_value={'jobs': [
+                   {'job_key': rows[0]['job_key'], 'materials': [{'language': 'en'}, {'language': 'zh'}]}],
+                   'external_actions': {'emails_sent': 0, 'applications_submitted': 0}}) as prepare:
+            result = daily_job_search.daily_prepare(self.case, limit=3)
+        prepare.assert_called_once_with(self.case, [rows[0]['job_key']], font=None)
+        self.assertEqual(result['summary'], {'discovered': 4, 'prepared': 1, 'held': 3,
+                                             'emails_sent': 0, 'applications_submitted': 0})
+        self.assertEqual(len(result['held']), 3)
+
+    def test_daily_prepare_does_not_count_partial_language_output_as_ready(self):
+        row = {'job_key': 'opportunity-' + '9' * 20, 'company': 'A', 'title': 'AI Ops',
+               'verification_status': 'verified_open', 'grade': 'A', 'employment_category': 'full_time',
+               'posted_compensation': {'paid_status': 'paid'}}
+        discovery = {'run_at': '2026-10-17T00:00:00+00:00', 'results_count': 1, 'jobs': [row],
+                     'sources': [], 'external_actions': {}, 'scheduler': 'not_configured', 'coverage_note': 'synthetic'}
+        with patch.object(daily_job_search, 'discover_daily', return_value=discovery), \
+             patch.object(daily_job_search, 'prepare_selected', return_value={'jobs': [
+                 {'job_key': row['job_key'], 'materials': [{'language': 'en'}],
+                  'errors': [{'language': 'zh', 'reason': 'PDF renderer unavailable'}]}]}):
+            result = daily_job_search.daily_prepare(self.case, limit=1)
+        self.assertEqual(result['summary']['prepared'], 0)
+        self.assertEqual(result['held'][0]['reasons'][0], '中英文材料未同时生成：PDF renderer unavailable')
+
+    def test_global_scope_keeps_overseas_jobs_for_review_and_marks_work_right_unknown(self):
+        preferences = {'job_search_strategy': {'geographic_scope': 'global'}}
+        (self.case / 'search-preferences.json').write_text(json.dumps(preferences), encoding='utf-8')
+        job = {'title': 'AI Operations Associate', 'company': 'Synthetic Global Co', 'location': 'London, UK',
+               'employment_type': 'Full-time', 'url': 'https://example.test/job',
+               'jd': 'Requirements: Bachelor degree. Responsibilities include AI content quality operations.',
+               'verification': {'status': 'verified_open'}}
+        result = foreign_opportunities.matching(self.case, job)
+        self.assertEqual(result['global_work_eligibility']['status'], 'unknown')
+        self.assertIn('签证担保', ' '.join(result['warnings']))
+        self.assertIn(result['grade'], {'B', 'C'})
+
+    def test_global_discovery_accepts_global_office_locations(self):
+        preferences = {'job_search_strategy': {'geographic_scope': 'global', 'target_directions': [
+            {'priority': 'P0', 'label': 'AI Operations', 'keywords': ['AI Operations']} ]}}
+        (self.case / 'search-preferences.json').write_text(json.dumps(preferences), encoding='utf-8')
+        payload = [{'text': 'AI Operations Associate', 'categories': {'location': 'London, UK', 'commitment': 'Full-time'},
+                    'descriptionPlain': 'AI operations role', 'hostedUrl': 'https://jobs.lever.co/veeva/00000000-0000-0000-0000-000000000001'}]
+        captured = []
+        def transport(url):
+            return 200, url, json.dumps(payload)
+        def import_url(case, request, get):
+            captured.append(request['url'])
+            return {'job_key': 'opportunity-' + 'd' * 20, 'duplicate': False, 'status': 'discovered'}
+        with patch.object(foreign_opportunities, 'import_url', side_effect=import_url):
+            result = foreign_opportunities.discover(self.case, 'veeva', limit=1, transport=transport)
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(result['results'][0]['status'], 'discovered')
+        self.assertIn('全球求职策略', result['note'])
 
     def test_unconfirmed_internship_is_blocked_from_material_preparation(self):
         key = 'opportunity-' + 'a' * 20
@@ -119,6 +203,19 @@ class DailyDiscoveryTests(unittest.TestCase):
         with patch.object(foreign_opportunities, 'list_jobs', return_value={'jobs': [job]}), \
              patch.object(job_data, 'manifests', return_value=[]):
             with self.assertRaisesRegex(ValueError, '毕业资格未被官方确认'):
+                daily_job_search._load_selected_jobs(self.case, [key])
+
+    def test_unconfirmed_overseas_work_eligibility_is_blocked_from_material_preparation(self):
+        key = 'opportunity-' + 'f' * 20
+        job = {'job_key': key, 'title': 'Overseas AI Operations', 'company': 'Synthetic Co',
+               'jd': 'Responsibilities include AI content operations and quality review. ' * 2,
+               'verification': {'status': 'verified_open'},
+               'match': {'grade': 'B', 'employment_category': 'full_time',
+                         'global_work_eligibility': {'status': 'unknown'},
+                         'posted_compensation': {'paid_status': 'paid'}}}
+        with patch.object(foreign_opportunities, 'list_jobs', return_value={'jobs': [job]}), \
+             patch.object(job_data, 'manifests', return_value=[]):
+            with self.assertRaisesRegex(ValueError, '目标工作地的工作许可'):
                 daily_job_search._load_selected_jobs(self.case, [key])
 
     def test_preparing_materials_uses_existing_pipeline_and_does_not_create_submission(self):
