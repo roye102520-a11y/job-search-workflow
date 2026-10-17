@@ -42,6 +42,8 @@ class ForeignDiscoveryAuditTests(unittest.TestCase):
 
     def test_response_limit_is_larger_only_for_reviewed_lever_feeds(self):
         self.assertEqual(jobs.response_limit('https://api.lever.co/v0/postings/rws?mode=json'), jobs.MAX_LEVER_FEED_BYTES)
+        self.assertEqual(jobs.response_limit('https://boards-api.greenhouse.io/v1/boards/anthropic/jobs?content=true'), jobs.MAX_REVIEWED_ATS_FEED_BYTES)
+        self.assertEqual(jobs.response_limit('https://api.ashbyhq.com/posting-api/job-board/openai?includeCompensation=true'), jobs.MAX_REVIEWED_ATS_FEED_BYTES)
         self.assertEqual(jobs.response_limit('https://api.lever.co/v0/postings/unknown?mode=json'), jobs.MAX_BYTES)
         self.assertEqual(jobs.response_limit(URL), jobs.MAX_BYTES)
 
@@ -235,6 +237,86 @@ RWS is an equal opportunity employer.'''
         self.assertIn('Bachelor degree', job['jd'])
         self.assertTrue(job['apply_url'].endswith('/apply'))
 
+    def test_greenhouse_public_job_detail_is_parsed_and_allowlisted(self):
+        url = 'https://boards.greenhouse.io/anthropic/jobs/1234567'
+        body = {'id': 1234567, 'title': 'AI Operations Associate',
+                'content': '<p>Maintain AI content quality operations.</p><p>Bachelor degree.</p>',
+                'location': {'name': 'Remote - China'}, 'absolute_url': url,
+                'updated_at': '2026-10-16T10:00:00Z'}
+        origin = jobs.source(url)
+        self.assertEqual(origin['adapter'], 'greenhouse')
+        self.assertIn('/v1/boards/anthropic/jobs/1234567', origin['fetch_url'])
+        row = jobs.observe(url, lambda requested: (200, requested, json.dumps(body)))
+        self.assertEqual(row['verification']['status'], 'verified_open')
+        self.assertEqual(row['company'], 'Anthropic')
+        self.assertIn('AI content quality', row['jd'])
+        self.assertEqual(row['location'], 'Remote - China')
+
+    def test_html_entities_are_decoded_before_requirement_matching(self):
+        url = 'https://boards.greenhouse.io/anthropic/jobs/1234567'
+        body = {'id': 1234567, 'title': 'AI Operations Associate',
+                'content': '&lt;h2&gt;Minimum qualifications&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;Clear written communication&lt;/li&gt;&lt;/ul&gt;',
+                'location': {'name': 'Remote - China'}, 'absolute_url': url}
+        row = jobs.observe(url, lambda requested: (200, requested, json.dumps(body)))
+        self.assertNotIn('&lt;h2&gt;', row['jd'])
+        self.assertIn('Minimum qualifications', row['jd'])
+
+    def test_ashby_public_board_feed_selects_requested_job(self):
+        url = 'https://jobs.ashbyhq.com/openai/12345678-1234-1234-1234-123456789012'
+        body = {'apiVersion': '1', 'jobs': [
+            {'id': '12345678-1234-1234-1234-123456789012', 'title': 'Product Operations Associate',
+             'location': 'Remote - China', 'employmentType': 'Full time',
+             'descriptionHtml': '<p>Support product operations and customer feedback.</p>',
+             'jobUrl': url, 'applyUrl': url + '/application', 'publishedAt': '2026-10-15T12:00:00Z'}]}
+        origin = jobs.source(url)
+        self.assertEqual(origin['adapter'], 'ashby')
+        self.assertIn('/posting-api/job-board/openai', origin['fetch_url'])
+        row = jobs.observe(url, lambda requested: (200, requested, json.dumps(body)))
+        self.assertEqual(row['verification']['status'], 'verified_open')
+        self.assertEqual(row['title'], 'Product Operations Associate')
+        self.assertEqual(row['company'], 'OpenAI')
+
+    def test_discover_daily_accepts_non_lever_sources_without_changing_tracker_model(self):
+        preferences = {'job_search_strategy': {'geographic_scope': 'global', 'target_directions': [
+            {'priority': 'P1', 'label': 'Product Operations', 'keywords': ['Product Operations']} ]}}
+        (self.case / 'search-preferences.json').write_text(json.dumps(preferences), encoding='utf-8')
+        ident = '12345678-1234-1234-1234-123456789012'
+        url = 'https://jobs.ashbyhq.com/openai/' + ident
+        board = {'jobs': [{'id': ident, 'title': 'Product Operations Associate', 'location': 'Remote - China',
+                           'employmentType': 'Full time', 'descriptionHtml': '<p>Support product operations and customer feedback.</p>',
+                           'jobUrl': url, 'applyUrl': url + '/application', 'publishedAt': '2026-10-15T12:00:00Z'}]}
+        def fake(requested):
+            if 'posting-api/job-board/openai' in requested:
+                return 200, requested, json.dumps(board)
+            return 200, requested, json.dumps(board)
+        from daily_job_search import discover_daily
+        result = discover_daily(self.case, 1, ['ashby:openai'], fake)
+        self.assertEqual(result['results_count'], 1)
+        self.assertEqual(result['jobs'][0]['source_id'], 'ashby:openai')
+        self.assertEqual(result['jobs'][0]['adapter'], 'ashby')
+        self.assertEqual(len(job_data.rows(self.case)[0]), 1)
+
+    def test_workday_search_feed_uses_exact_tenant_and_imports_official_job(self):
+        preferences = {'job_search_strategy': {'geographic_scope': 'global', 'target_directions': [
+            {'priority': 'P0', 'label': 'AI Operations', 'keywords': ['AI Operations']} ]}}
+        (self.case / 'search-preferences.json').write_text(json.dumps(preferences), encoding='utf-8')
+        path = '/en-US/Cerence/job/Shanghai/AI-Operations_R123'
+        feed = {'jobPostings': [{'title': 'AI Operations Associate', 'locationsText': 'Shanghai, China',
+                                 'externalPath': path, 'postedOn': '2026-10-15'}]}
+        detail = {'jobPostingInfo': {'title': 'AI Operations Associate', 'jobDescription': '<p>Support AI operations and quality review.</p>',
+                                     'jobReqId': 'R123', 'location': 'Shanghai, China', 'timeType': 'Full time',
+                                     'canApply': True, 'posted': True}}
+        requests = []
+        def fake(requested, payload=None):
+            requests.append((requested, payload))
+            if requested.endswith('/jobs'):
+                return 200, requested, json.dumps(feed)
+            return 200, requested, json.dumps(detail)
+        result = jobs.discover(self.case, 'cerence', 1, fake, adapter='workday')
+        self.assertEqual(len(result['results']), 1)
+        self.assertEqual(result['results'][0]['job']['title'], 'AI Operations Associate')
+        self.assertEqual(requests[0][1]['limit'], 5)
+
     def test_unverified_source_is_U_and_unpaid_is_deprioritized(self):
         unverified = jobs.observe(URL, lambda u: (200, u, '{}'))
         self.assertEqual(jobs.matching(self.case, unverified)['grade'], 'U')
@@ -353,6 +435,9 @@ RWS is an equal opportunity employer.'''
         competitive = jobs.compensation_details({'jd': 'Salary: Competitive. Our company revenue exceeded $3B.'})
         self.assertEqual(competitive['paid_status'], 'unknown')
         self.assertEqual(competitive['published'], 'Salary: Competitive.')
+        annual = jobs.compensation_details({'jd': 'Annual Salary:\n$120,000—$160,000 USD'})
+        self.assertEqual(annual['paid_status'], 'paid')
+        self.assertIn('$120,000', annual['published'])
         self.assertEqual(jobs.work_arrangement({'location': 'Shanghai', 'jd': 'Responsibilities: organize knowledge articles.'})['status'], 'unknown')
 
     def test_internship_graduate_eligibility_requires_current_official_acceptance(self):

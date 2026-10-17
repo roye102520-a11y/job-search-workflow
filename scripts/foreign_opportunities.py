@@ -11,6 +11,7 @@ import json
 import re
 import socket
 from datetime import datetime, timezone, timedelta
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -23,13 +24,21 @@ from jd_requirements import assess
 
 MAX_BYTES = 2 * 1024 * 1024
 MAX_LEVER_FEED_BYTES = 16 * 1024 * 1024
+MAX_REVIEWED_ATS_FEED_BYTES = 16 * 1024 * 1024
 SCORE_LABEL = '规则识别的证据覆盖分，不是录取概率；所有结果均需人工复核'
 MATCH_RULES_VERSION = '2026-10-17.2'
 # Exact tenants, never a wildcard such as *.myworkdayjobs.com.
 LEVER = {'weloglobal': 'Welo Global', 'getwingapp': 'Wing Assistant', 'veeva': 'Veeva Systems', 'rws': 'RWS Group'}
+# These are public, unauthenticated ATS boards. A failed board is reported as
+# unavailable; it never creates a verified job. Users may add exact board
+# slugs in private search-preferences.json without changing this code.
+GREENHOUSE = {'anthropic': 'Anthropic', 'studycom': 'Study.com', 'arizeai': 'Arize AI'}
+ASHBY = {'openai': 'OpenAI', 'ramp': 'Ramp', 'notion': 'Notion', 'cursor': 'Cursor'}
 WORKDAY = {'cerence.wd5.myworkdayjobs.com': ('cerence', 'Cerence', 'Cerence'),
            'sanofi.wd3.myworkdayjobs.com': ('sanofi', 'SanofiCareers', 'Sanofi'),
            'lighting.wd3.myworkdayjobs.com': ('lighting', 'jobs-and-careers', 'Signify')}
+WORKDAY_SOURCES = {tenant: {'host': host, 'tenant': tenant, 'site': site, 'company': company}
+                   for host, (tenant, site, company) in WORKDAY.items()}
 
 
 class Page(HTMLParser):
@@ -55,7 +64,7 @@ class Page(HTMLParser):
 
 
 def plain(html):
-    page = Page(); page.feed(html or '')
+    page = Page(); page.feed(unescape(html or ''))
     return '\n'.join(' '.join(line.split()) for line in ''.join(page.text).splitlines() if line.strip())
 
 
@@ -73,6 +82,20 @@ def source(url):
             tenant, ident = parts
             return dict(company=LEVER[tenant], namespace='lever:' + tenant, requisition_id=ident,
                         adapter='lever', fetch_url=f'https://api.lever.co/v0/postings/{tenant}/{ident}')
+    if host in {'boards.greenhouse.io', 'job-boards.greenhouse.io'}:
+        parts = path.strip('/').split('/')
+        if len(parts) == 3 and parts[0] in GREENHOUSE and parts[1] == 'jobs' and re.fullmatch(r'\d+', parts[2]):
+            board, _, ident = parts
+            return dict(company=GREENHOUSE[board], namespace='greenhouse:' + board, requisition_id=ident,
+                        adapter='greenhouse', fetch_url=f'https://boards-api.greenhouse.io/v1/boards/{board}/jobs/{ident}?content=true')
+    if host == 'jobs.ashbyhq.com':
+        parts = path.strip('/').split('/')
+        if len(parts) == 2 and parts[0] in ASHBY and re.fullmatch(r'[a-f0-9-]{36}', parts[1], re.I):
+            board, ident = parts
+            # Ashby exposes a public board feed rather than a stable per-job
+            # JSON endpoint. The parser selects the requested UUID from it.
+            return dict(company=ASHBY[board], namespace='ashby:' + board, requisition_id=ident,
+                        adapter='ashby', board=board, fetch_url=f'https://api.ashbyhq.com/posting-api/job-board/{board}?includeCompensation=true')
     if host in WORKDAY:
         tenant, site, company = WORKDAY[host]
         match = re.search(r'/job/(.+)$', path)
@@ -93,7 +116,9 @@ def source(url):
 
 def network_url(url):
     p = urlsplit(url)
-    hosts = {'api.lever.co', 'api.smartrecruiters.com', 'jobs.smartrecruiters.com', 'jobs.sap.com', 'careers.sap.com', 'jobs.ikea.com', *WORKDAY}
+    hosts = {'api.lever.co', 'api.smartrecruiters.com', 'jobs.smartrecruiters.com',
+             'boards-api.greenhouse.io', 'boards.greenhouse.io', 'job-boards.greenhouse.io',
+             'api.ashbyhq.com', 'jobs.ashbyhq.com', 'jobs.sap.com', 'careers.sap.com', 'jobs.ikea.com', *WORKDAY}
     if p.scheme != 'https' or p.hostname not in hosts or p.username or p.password or p.port not in (None, 443):
         raise ValueError('拒绝非官方重定向或网络地址')
     addresses = socket.getaddrinfo(p.hostname, 443, type=socket.SOCK_STREAM)
@@ -107,6 +132,9 @@ def response_limit(url):
             and re.fullmatch(r'/v0/postings/(?:weloglobal|getwingapp|veeva|rws)', parsed.path)
             and dict(parse_qsl(parsed.query)).get('mode') == 'json'):
         return MAX_LEVER_FEED_BYTES
+    if (parsed.hostname in {'boards-api.greenhouse.io', 'api.ashbyhq.com'}
+            and ('/v1/boards/' in parsed.path or '/posting-api/job-board/' in parsed.path)):
+        return MAX_REVIEWED_ATS_FEED_BYTES
     return MAX_BYTES
 
 
@@ -129,6 +157,20 @@ def fetch(url):
         return response.status, response.url, raw.decode('utf-8')
 
 
+def fetch_workday_search(url, payload):
+    """Read a public Workday search endpoint with a bounded POST body."""
+    network_url(url)
+    raw_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    request = Request(url, data=raw_payload, method='POST', headers={
+        'User-Agent': 'CareerStudio/1.0 (read-only job research)',
+        'Accept': 'application/json', 'Content-Type': 'application/json'})
+    with build_opener(Redirects()).open(request, timeout=15) as response:
+        raw = response.read(MAX_BYTES + 1)
+        if len(raw) > MAX_BYTES:
+            raise ValueError('官方岗位搜索结果超过读取上限，需缩小搜索范围')
+        return response.status, response.url, raw.decode('utf-8')
+
+
 def parse(url, body):
     origin = source(url)
     row = dict(url=url, company=origin['company'], employer_namespace=origin['namespace'],
@@ -144,6 +186,43 @@ def parse(url, body):
         row['jd'] = '\n'.join([data.get('descriptionPlain', '')] +
                              [item.get('text', '') + '\n' + plain(item.get('content', '')) for item in data.get('lists', [])] +
                              [data.get('additionalPlain', '')]).replace('\\n', '\n').strip()
+        row['accepting'] = bool(row['title'] and row['jd'] and row['apply_url'])
+    elif origin['adapter'] == 'greenhouse':
+        data = json.loads(body)
+        location = data.get('location') if isinstance(data.get('location'), dict) else {}
+        offices = data.get('offices') if isinstance(data.get('offices'), list) else []
+        office_names = [str(item.get('name') or item.get('location') or '').strip() for item in offices if isinstance(item, dict)]
+        location_text = str(location.get('name') or '').strip() or ', '.join(item for item in office_names if item) or '未知'
+        apply_url = data.get('absolute_url') or url
+        metadata = data.get('metadata') if isinstance(data.get('metadata'), list) else []
+        metadata_values = [str(item.get('value') or '').strip() for item in metadata if isinstance(item, dict) and item.get('value')]
+        row.update(title=data.get('title', ''), jd=plain(data.get('content', '')),
+                   requisition_id=str(data.get('id') or origin['requisition_id']), location=location_text,
+                   employment_type='; '.join(metadata_values) or str(data.get('employment_type') or '未知'),
+                   posted_date_text=data.get('updated_at') or data.get('created_at') or '未知',
+                   apply_url=apply_url, compensation=data.get('salary_range') or '')
+        posted = str(data.get('first_published') or data.get('created_at') or '')
+        row['posted_date'] = posted[:10] if re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:T.*)?', posted) else None
+        row['accepting'] = bool(row['title'] and row['jd'] and row['apply_url'])
+    elif origin['adapter'] == 'ashby':
+        data = json.loads(body)
+        jobs = data.get('jobs') if isinstance(data, dict) else data
+        jobs = jobs if isinstance(jobs, list) else []
+        selected = next((item for item in jobs if isinstance(item, dict)
+                         and str(item.get('jobUrl') or '').rstrip('/').split('/')[-1].lower() == origin['requisition_id'].lower()
+                         or str(item.get('id') or '').lower() == origin['requisition_id'].lower()), None)
+        if selected is None:
+            selected = {}
+        locations = [str(selected.get('location') or '').strip()]
+        locations.extend(str(item.get('location') or '').strip() for item in (selected.get('secondaryLocations') or []) if isinstance(item, dict))
+        location_text = ', '.join(item for item in locations if item) or '未知'
+        apply_url = selected.get('applyUrl') or selected.get('jobUrl') or ''
+        row.update(title=selected.get('title', ''), jd=plain(selected.get('descriptionHtml') or selected.get('description') or ''),
+                   requisition_id=str(selected.get('id') or origin['requisition_id']), location=location_text,
+                   employment_type=selected.get('employmentType') or '未知', posted_date_text=selected.get('publishedAt') or '未知',
+                   apply_url=apply_url, compensation=selected.get('compensation') or '')
+        posted = str(selected.get('publishedAt') or '')
+        row['posted_date'] = posted[:10] if re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:T.*)?', posted) else None
         row['accepting'] = bool(row['title'] and row['jd'] and row['apply_url'])
     elif origin['adapter'] == 'workday':
         data = json.loads(body).get('jobPostingInfo', {})
@@ -289,11 +368,16 @@ def compensation_details(job, unpaid=False):
     source_value = job.get('compensation')
     lines = [str(line).strip() for line in jd.splitlines() if str(line).strip()]
     pay_header = re.compile(r'^\s*(?:薪资|薪酬|工资|津贴|补贴|salary(?: range)?|compensation|stipend|pay(?: range)?)\s*[:：]', re.I)
+    annual_header = re.compile(r'^\s*(?:annual salary|annual compensation|base salary|年薪)\s*[:：]?$', re.I)
     money = r'(?:(?:CNY|RMB|USD|EUR|GBP|\$|¥|￥)\s*\d[\d,.]*|\d[\d,.]*\s*(?:CNY|RMB|USD|EUR|GBP|\$|¥|￥))'
-    pay_rate = re.compile(money + r'(?:\s*(?:-|~|至|–)\s*' + money + r')?\s*(?:/\s*(?:hour|hr|month|year|小时|月|年)|per\s+(?:hour|month|year)|每(?:小时|月|年)|月薪|年薪)', re.I)
+    pay_rate = re.compile(money + r'(?:\s*(?:-|~|至|–|—)\s*' + money + r')?\s*(?:/\s*(?:hour|hr|month|year|小时|月|年)|per\s+(?:hour|month|year)|每(?:小时|月|年)|月薪|年薪)', re.I)
+    annual_amount = re.compile(money + r'\s*(?:-|~|至|–|—)\s*' + money, re.I)
     explicit_paid = re.compile(r'\bpaid\s+(?:internship|intern|position|role|job|employment)\b|\b(?:internship|intern)\b.{0,45}\bpaid\b|实习津贴|提供薪酬|有薪实习|有薪岗位', re.I)
     pay_lines = [line for line in lines if pay_header.search(line) or explicit_paid.search(line) or pay_rate.search(line)
                  or re.search(r'\bunpaid\s+(?:internship|intern|position|role|job|opportunity)\b|无薪实习|无薪岗位|不提供薪资', line, re.I)]
+    for index, line in enumerate(lines[:-1]):
+        if annual_header.search(line) and annual_amount.search(lines[index + 1]):
+            pay_lines.insert(0, line + ' ' + lines[index + 1])
     if isinstance(source_value, str):
         published = source_value.strip()
     elif isinstance(source_value, (int, float)):
@@ -318,7 +402,7 @@ def compensation_details(job, unpaid=False):
         published = line[:240]
     if unpaid:
         return {'paid_status': 'unpaid', 'published': published or '无薪（来源明确说明）'}
-    paid = bool(explicit_paid.search(jd) or any(pay_rate.search(line) for line in pay_lines))
+    paid = bool(explicit_paid.search(jd) or any(pay_rate.search(line) or annual_amount.search(line) for line in pay_lines))
     if not paid and published and ((isinstance(source_value, str) and source_value.strip()) or isinstance(source_value, (int, float, dict))):
         paid = True
     return {'paid_status': 'paid' if paid else 'unknown',
@@ -752,15 +836,56 @@ def studio_job(case, key):
     return {k: job[k] for k in ('jd', 'title', 'company', 'url')}
 
 
-def discover(case, tenant, limit=10, transport=None):
-    """Search one reviewed public Lever feed using the case's private targets."""
-    if tenant not in LEVER or type(limit) is not int or not 1 <= limit <= 10:
+def _source_registry(case):
+    """Return exact reviewed boards plus user-added exact public boards."""
+    sources = []
+    sources.extend({'source_id': 'lever:' + key, 'adapter': 'lever', 'tenant': key, 'company': value}
+                   for key, value in LEVER.items())
+    sources.extend({'source_id': 'greenhouse:' + key, 'adapter': 'greenhouse', 'tenant': key, 'company': value}
+                   for key, value in GREENHOUSE.items())
+    sources.extend({'source_id': 'ashby:' + key, 'adapter': 'ashby', 'tenant': key, 'company': value}
+                   for key, value in ASHBY.items())
+    sources.extend({'source_id': 'workday:' + key, 'adapter': 'workday', 'tenant': key, 'company': value['company']}
+                   for key, value in WORKDAY_SOURCES.items())
+    return sources
+
+
+def discover(case, tenant, limit=10, transport=None, adapter=None):
+    """Search one reviewed public ATS feed using the case's private targets."""
+    adapter = adapter or ('lever' if tenant in LEVER else 'greenhouse' if tenant in GREENHOUSE else 'ashby' if tenant in ASHBY else 'workday' if tenant in WORKDAY_SOURCES else None)
+    allowed = LEVER if adapter == 'lever' else GREENHOUSE if adapter == 'greenhouse' else ASHBY if adapter == 'ashby' else WORKDAY_SOURCES if adapter == 'workday' else {}
+    if tenant not in allowed or type(limit) is not int or not 1 <= limit <= 10:
         raise ValueError('请选择支持的 ATS 租户，每轮最多 10 个岗位')
     get = transport or fetch
-    code, final, body = get(f'https://api.lever.co/v0/postings/{tenant}?mode=json')
-    if code != 200 or final != f'https://api.lever.co/v0/postings/{tenant}?mode=json':
+    if adapter == 'lever':
+        feed_url = f'https://api.lever.co/v0/postings/{tenant}?mode=json'
+    elif adapter == 'greenhouse':
+        feed_url = f'https://boards-api.greenhouse.io/v1/boards/{tenant}/jobs?content=true'
+    elif adapter == 'ashby':
+        feed_url = f'https://api.ashbyhq.com/posting-api/job-board/{tenant}?includeCompensation=true'
+    else:
+        config = WORKDAY_SOURCES[tenant]
+        feed_url = f"https://{config['host']}/wday/cxs/{config['tenant']}/{config['site']}/jobs"
+    if adapter == 'workday':
+        payload = {'appliedFacets': {}, 'limit': min(limit * 5, 50), 'offset': 0, 'searchText': ''}
+        if transport:
+            try:
+                code, final, body = transport(feed_url, payload)
+            except TypeError:
+                code, final, body = transport(feed_url)
+        else:
+            code, final, body = fetch_workday_search(feed_url, payload)
+    else:
+        code, final, body = get(feed_url)
+    if code != 200 or final != feed_url:
         raise ValueError('官方职位列表读取失败')
-    jobs = json.loads(body)
+    payload = json.loads(body)
+    if adapter == 'lever':
+        jobs = payload
+    elif adapter in {'greenhouse', 'ashby'}:
+        jobs = payload.get('jobs', []) if isinstance(payload, dict) else []
+    else:
+        jobs = payload.get('jobPostings', []) if isinstance(payload, dict) else []
     if not isinstance(jobs, list): raise ValueError('官方职位列表格式有误')
     pref = read_json(case, 'search-preferences.json', {})
     if not isinstance(pref, dict): pref = {}
@@ -773,11 +898,17 @@ def discover(case, tenant, limit=10, transport=None):
     for item in jobs:
         if not isinstance(item, dict): continue
         categories = item.get('categories') if isinstance(item.get('categories'), dict) else {}
-        title = str(item.get('text') or '').strip()
-        location = str(categories.get('location') or item.get('location') or '').strip()
-        description = str(item.get('descriptionPlain') or item.get('description') or '')
-        searchable = title + '\n' + description
-        if not item.get('hostedUrl') or not title or LEVER[tenant].casefold() in excluded:
+        title = str(item.get('text') or item.get('title') or '').strip()
+        location = str(categories.get('location') or item.get('location') or item.get('locationsText') or '').strip()
+        description = str(item.get('descriptionPlain') or item.get('description') or item.get('descriptionHtml') or '')
+        searchable = title + '\n' + description + '\n' + location
+        if adapter == 'workday':
+            external_path = str(item.get('externalPath') or item.get('externalUrl') or '').strip()
+            hosted = urljoin('https://' + WORKDAY_SOURCES[tenant]['host'], external_path) if external_path.startswith('/') else external_path
+        else:
+            hosted = item.get('hostedUrl') or item.get('absolute_url') or item.get('jobUrl')
+        company_name = allowed[tenant] if adapter != 'workday' else allowed[tenant]['company']
+        if not hosted or not title or company_name.casefold() in excluded:
             continue
         if senior_title.search(title):
             continue
@@ -800,25 +931,38 @@ def discover(case, tenant, limit=10, transport=None):
             priority = 'P1'
         if not priority:
             continue
-        commitment = str(categories.get('commitment') or item.get('employment_type') or '')
+        commitment = str(categories.get('commitment') or item.get('employment_type') or item.get('employmentType') or item.get('timeType') or '')
         candidates.append(({'P0': 0, 'P1': 1, 'P2': 2}.get(priority, 9), 0 if early_career.search(title + ' ' + commitment) else 1,
                            title.casefold(), item))
     candidates.sort(key=lambda row: row[:3])
     # Import performs a second live read, not a verification of feed snippets.
-    imported = [import_url(case, {'url': item['hostedUrl']}, get) for _, _, _, item in candidates[:limit]]
+    imported = []
+    for _, _, _, item in candidates[:limit]:
+        if adapter == 'workday':
+            external_path = str(item.get('externalPath') or item.get('externalUrl') or '').strip()
+            job_url = urljoin('https://' + WORKDAY_SOURCES[tenant]['host'], external_path) if external_path.startswith('/') else external_path
+        else:
+            job_url = item.get('hostedUrl') or item.get('absolute_url') or item.get('jobUrl')
+        imported.append(import_url(case, {'url': job_url}, get))
     scope_note = ('按全球求职策略和目标方向排序；海外工作许可、签证担保、雇佣主体、搬迁或远程居住地仍逐岗核验。'
                   if global_scope else '按当前案例岗位方向与地点偏好排序；资格、薪资、工作许可和官网申请状态仍逐岗核验。')
     return {'results': imported, 'mode': 'discovery-only',
-            'note': scope_note + '仅覆盖已支持的公开 Lever 租户。'}
+            'note': scope_note + '仅覆盖已审核的公开 ATS 租户；未返回岗位不代表其他企业没有职位。'}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--case', type=Path, required=True)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--url'); group.add_argument('--discover', choices=list(LEVER)); group.add_argument('--list', action='store_true')
+    group.add_argument('--url'); group.add_argument('--discover', help='来源租户，例如 lever:rws、greenhouse:anthropic 或 ashby:openai'); group.add_argument('--list', action='store_true')
     args = parser.parse_args()
-    result = import_url(args.case, {'url': args.url}) if args.url else discover(args.case, args.discover) if args.discover else list_jobs(args.case)
+    if args.url:
+        result = import_url(args.case, {'url': args.url})
+    elif args.discover:
+        adapter, tenant = args.discover.split(':', 1) if ':' in args.discover else ('lever', args.discover)
+        result = discover(args.case, tenant, adapter=adapter)
+    else:
+        result = list_jobs(args.case)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

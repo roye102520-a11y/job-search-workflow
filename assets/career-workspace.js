@@ -181,8 +181,8 @@ $('career-positioning-panel').addEventListener('toggle',async event=>{
   }catch(error){status.textContent='本地职业定位暂不可用：'+error.message;}
 });
 $('discover-daily-button').addEventListener('click',async()=>{
-  const button=$('discover-daily-button'),status=$('discovery-run-status');button.disabled=true;status.textContent='正在读取已支持的官方招聘源；本轮上限 10 个，只发现和核验，不会投递。';
-  try{const result=await api('/api/opportunities/discover-daily',{limit:10});await refresh();status.textContent='本轮读取 '+result.sources.length+' 个 ATS 来源，保存 '+result.results_count+' 个岗位；邮件发送 0、申请提交 0。每日后台调度：'+(result.scheduler==='not_configured'?'尚未配置。':'已配置。')+' 覆盖范围仅限已接入来源。';}
+  const button=$('discover-daily-button'),status=$('discovery-run-status');button.disabled=true;status.textContent='正在读取已审核的 Lever、Greenhouse、Ashby 与 Workday 招聘源；本轮上限 10 个，只发现和核验，不会投递。';
+  try{const sources=['lever:veeva','lever:getwingapp','lever:weloglobal','lever:rws','greenhouse:anthropic','greenhouse:studycom','greenhouse:arizeai','ashby:openai','ashby:ramp','ashby:notion','ashby:cursor','workday:cerence','workday:sanofi','workday:lighting'];const result=await api('/api/opportunities/discover-daily',{limit:10,sources});await refresh();status.textContent='本轮读取 '+result.sources.length+' 个官方 ATS 来源，保存 '+result.results_count+' 个岗位；邮件发送 0、申请提交 0。每日后台调度：'+(result.scheduler==='not_configured'?'尚未配置。':'已配置。')+' 未核验的岗位不会进入投递。';}
   catch(error){status.textContent='岗位发现未完成：'+error.message;}
   finally{button.disabled=false;}
 });

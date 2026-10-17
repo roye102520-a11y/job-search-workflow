@@ -21,39 +21,59 @@ from resume_pipeline import generate, load_evidence
 MAX_DAILY_RESULTS = 100
 MAX_PER_TENANT = 10
 MAX_PREPARATION_RESULTS = 10
+DEFAULT_SOURCES = ('lever:veeva', 'lever:getwingapp', 'lever:weloglobal', 'lever:rws',
+                   'greenhouse:anthropic', 'greenhouse:studycom', 'greenhouse:arizeai',
+                   'ashby:openai', 'ashby:ramp', 'ashby:notion', 'ashby:cursor',
+                   'workday:cerence', 'workday:sanofi', 'workday:lighting')
+# Compatibility for callers that still pass only Lever tenant names.
 DEFAULT_TENANTS = ('veeva', 'getwingapp', 'weloglobal', 'rws')
 TERMINAL_STAGES = {'submitted', 'assessment', 'interview', 'offer', 'rejected', 'withdrawn', 'closed'}
 
 
-def discover_daily(case, limit=10, tenants=None, transport=None):
+def discover_daily(case, limit=10, tenants=None, transport=None, sources=None):
     if type(limit) is not int or not 1 <= limit <= MAX_DAILY_RESULTS:
         raise ValueError('每日扫描上限为 1–100 条线索；每个已审核来源最多 10 个，实际数量取决于接入来源和在招岗位')
-    selected = list(tenants or DEFAULT_TENANTS)
-    if (not selected or len(selected) != len(set(selected))
-            or any(tenant not in foreign_opportunities.LEVER for tenant in selected)):
-        raise ValueError('只能选择已经审核支持的官方 Lever 租户')
+    selected = list(sources if sources is not None else (tenants if tenants is not None else DEFAULT_TENANTS))
+    normalized = []
+    for source in selected:
+        if ':' in source:
+            adapter, tenant = source.split(':', 1)
+        else:
+            adapter, tenant = 'lever', source
+        normalized.append((adapter, tenant))
+    if (not normalized or len(normalized) != len(set(normalized))
+            or any(adapter not in {'lever', 'greenhouse', 'ashby', 'workday'} for adapter, _ in normalized)
+            or any((tenant not in (foreign_opportunities.LEVER if adapter == 'lever' else foreign_opportunities.GREENHOUSE if adapter == 'greenhouse' else foreign_opportunities.ASHBY if adapter == 'ashby' else foreign_opportunities.WORKDAY_SOURCES))
+                   for adapter, tenant in normalized)):
+        raise ValueError('只能选择已经审核支持的官方 ATS 租户')
     remaining = limit
     results, sources = [], []
-    for index, tenant in enumerate(selected):
-        quota = min(MAX_PER_TENANT, (remaining + len(selected) - index - 1) // (len(selected) - index))
+    for index, (adapter, tenant) in enumerate(normalized):
+        quota = min(MAX_PER_TENANT, (remaining + len(normalized) - index - 1) // (len(normalized) - index))
         if quota <= 0: break
         try:
-            response = foreign_opportunities.discover(case, tenant, quota, transport)
+            if adapter == 'lever':
+                response = foreign_opportunities.discover(case, tenant, quota, transport)
+            else:
+                response = foreign_opportunities.discover(case, tenant, quota, transport, adapter=adapter)
             imported = response.get('results', []) if isinstance(response, dict) else []
-            results.extend((tenant, row) for row in imported[:quota])
-            sources.append({'tenant': tenant, 'status': 'read', 'returned': min(len(imported), quota)})
+            results.extend((adapter + ':' + tenant, adapter, tenant, row) for row in imported[:quota])
+            sources.append({'source_id': adapter + ':' + tenant, 'adapter': adapter, 'tenant': tenant,
+                            'status': 'read', 'returned': min(len(imported), quota)})
         except (OSError, ValueError, TypeError, KeyError) as error:
-            sources.append({'tenant': tenant, 'status': 'unavailable', 'reason': str(error)[:240]})
+            sources.append({'source_id': adapter + ':' + tenant, 'adapter': adapter, 'tenant': tenant,
+                            'status': 'unavailable', 'reason': str(error)[:240]})
         remaining = limit - len(results)
     saved = {row['job_key']: row for row in foreign_opportunities.list_jobs(case).get('jobs', [])}
     rows = []
-    for tenant, imported in results:
+    for source_id, adapter, tenant, imported in results:
         key = imported.get('job_key')
         job = saved.get(key) or imported.get('job') or {}
         match = job.get('match') if isinstance(job.get('match'), dict) else {}
         verification = job.get('verification') if isinstance(job.get('verification'), dict) else {}
         rows.append({
-            'job_key': key, 'tenant': tenant, 'company': job.get('company', foreign_opportunities.LEVER[tenant]),
+            'job_key': key, 'source_id': source_id, 'adapter': adapter, 'tenant': tenant,
+            'company': job.get('company', (foreign_opportunities.LEVER if adapter == 'lever' else foreign_opportunities.GREENHOUSE if adapter == 'greenhouse' else foreign_opportunities.ASHBY if adapter == 'ashby' else foreign_opportunities.WORKDAY_SOURCES)[tenant] if adapter != 'workday' else foreign_opportunities.WORKDAY_SOURCES[tenant]['company']),
             'title': job.get('title', '岗位待核实'), 'url': job.get('url', ''),
             'location': job.get('location', '未知'), 'tracker_status': imported.get('status', 'discovered'),
             'duplicate': bool(imported.get('duplicate')),
@@ -73,7 +93,7 @@ def discover_daily(case, limit=10, tenants=None, transport=None):
         'max_results': limit, 'results_count': len(rows), 'sources': sources, 'jobs': rows,
         'external_actions': {'emails_sent': 0, 'applications_submitted': 0},
         'scheduler': 'not_configured',
-        'coverage_note': '仅检索已审核接入的官方 Lever 租户；本配置当前最多 4 个来源 × 10 条。未返回岗位不代表其他企业没有职位，不能满足 50–100 条全球线索目标。',
+        'coverage_note': '仅检索已审核接入的官方 ATS 租户；每个来源最多 10 条。未返回岗位不代表其他企业没有职位；当前配置不能满足 50–100 条全球线索目标，也不能以数量目标替代资格核验。',
     }
 
 
@@ -245,13 +265,16 @@ def main():
     group.add_argument('--prepare-job-key', action='append', help='只为已核验且 A/B 级的岗位生成中英审阅材料；可重复指定，最多 10 个')
     group.add_argument('--positioning', action='store_true', help='输出本地证据职业定位报告')
     parser.add_argument('--limit', type=int, default=10)
-    parser.add_argument('--tenant', action='append', help='可重复指定已支持的 Lever 租户')
+    parser.add_argument('--tenant', action='append', help='可重复指定已支持的来源；可写 lever:rws、greenhouse:anthropic 或 ashby:openai')
+    parser.add_argument('--all-sources', action='store_true', help='扫描内置的 Lever、Greenhouse、Ashby 与 Workday 白名单')
     args = parser.parse_args()
     if args.positioning:
         result = career_positioning.build_report(args.case)
         print(career_positioning.render_markdown(result))
     elif args.discover:
-        print(json.dumps(discover_daily(args.case, args.limit, args.tenant), ensure_ascii=False, indent=2))
+        print(json.dumps(discover_daily(args.case, args.limit, args.tenant,
+                                        sources=DEFAULT_SOURCES if args.all_sources and not args.tenant else None),
+                          ensure_ascii=False, indent=2))
     elif args.daily_prepare:
         print(json.dumps(daily_prepare(args.case, args.limit, args.tenant), ensure_ascii=False, indent=2))
     else:

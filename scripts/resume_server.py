@@ -418,7 +418,11 @@ class StudioHandler(BaseHTTPRequestHandler):
                 result = foreign_opportunities.import_url(self.server.case, request)
             elif endpoint.endswith('/discover-daily'):
                 from daily_job_search import discover_daily
-                result = discover_daily(self.server.case, request.get('limit', 10))
+                sources = request.get('sources')
+                if isinstance(sources, list):
+                    result = discover_daily(self.server.case, request.get('limit', 10), sources=sources)
+                else:
+                    result = discover_daily(self.server.case, request.get('limit', 10))
             elif endpoint.endswith('/prepare'):
                 from daily_job_search import prepare_selected
                 result = prepare_selected(self.server.case, request['job_keys'], font=self.server.font)
