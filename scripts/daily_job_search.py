@@ -158,9 +158,10 @@ def _load_selected_jobs(case, job_keys):
             qualification = match.get('internship_qualification', {}).get('status')
             if qualification != 'eligible':
                 raise ValueError('实习岗位毕业资格未被官方确认，不能按符合条件生成材料：' + key)
-        work_eligibility = match.get('global_work_eligibility')
-        if isinstance(work_eligibility, dict) and work_eligibility.get('status') == 'unknown':
-            raise ValueError('目标工作地的工作许可、签证或远程雇佣资格尚未确认：' + key)
+        # Unknown work eligibility is a review blocker for submission, but it
+        # must not prevent a user-requested, clearly labelled local draft.
+        # Daily preparation remains A-only and therefore will not reach this
+        # path for unverified overseas roles.
         if match.get('posted_compensation', {}).get('paid_status') == 'unpaid':
             raise ValueError('无薪岗位默认降级，暂不进入批量材料准备：' + key)
         manifest_path, manifest = next(((path, manifest) for path, manifest in job_data.manifests(Path(case))

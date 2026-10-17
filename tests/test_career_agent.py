@@ -205,18 +205,24 @@ class DailyDiscoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '毕业资格未被官方确认'):
                 daily_job_search._load_selected_jobs(self.case, [key])
 
-    def test_unconfirmed_overseas_work_eligibility_is_blocked_from_material_preparation(self):
+    def test_unconfirmed_overseas_work_eligibility_allows_review_materials_only(self):
         key = 'opportunity-' + 'f' * 20
+        folder = self.case / 'applications' / key
+        folder.mkdir(parents=True)
+        manifest_path = folder / 'manifest.json'
+        manifest = {'job_key': key, 'status': 'discovered', 'url': 'https://example.test/job'}
+        manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
         job = {'job_key': key, 'title': 'Overseas AI Operations', 'company': 'Synthetic Co',
+               'url': 'https://example.test/job',
                'jd': 'Responsibilities include AI content operations and quality review. ' * 2,
                'verification': {'status': 'verified_open'},
                'match': {'grade': 'B', 'employment_category': 'full_time',
                          'global_work_eligibility': {'status': 'unknown'},
                          'posted_compensation': {'paid_status': 'paid'}}}
         with patch.object(foreign_opportunities, 'list_jobs', return_value={'jobs': [job]}), \
-             patch.object(job_data, 'manifests', return_value=[]):
-            with self.assertRaisesRegex(ValueError, '目标工作地的工作许可'):
-                daily_job_search._load_selected_jobs(self.case, [key])
+             patch.object(job_data, 'manifests', return_value=[(manifest_path, manifest)]):
+            selected = daily_job_search._load_selected_jobs(self.case, [key])
+            self.assertEqual(selected[0][0]['job_key'], key)
 
     def test_preparing_materials_uses_existing_pipeline_and_does_not_create_submission(self):
         key = 'opportunity-' + 'b' * 20

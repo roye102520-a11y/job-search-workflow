@@ -98,6 +98,12 @@ function renderOpportunityJobs(){
     if(application.resume_path)card.append(link('查看当前专属简历 ↗',localURL('/files/',application.resume_path)));
     const reasons=node('details');reasons.append(node('summary','查看匹配理由、条件证据与缺口'));
     const reasonBody=node('div');
+    const capability=match.capability_match||{};
+    if(capability.level)reasonBody.append(node('p','能力适合度：'+capability.level+' · '+(capability.score===null||capability.score===undefined?'未评分':capability.score+'%')+' · '+(capability.reason||'规则分析，非录用概率。')));
+    (capability.supported||[]).forEach(text=>reasonBody.append(node('p','能力证据：'+text)));
+    (capability.partial||[]).forEach(text=>reasonBody.append(node('p','部分能力：'+text)));
+    (capability.gaps||[]).forEach(text=>reasonBody.append(node('p','能力缺口：'+text)));
+    (match.project_recommendations||[]).forEach(project=>reasonBody.append(node('p','推荐项目：'+(project.name||project.id||'项目待确认')+' · '+(project.why||[]).join('；'))));
     (match.grade_reasons||[]).forEach(text=>reasonBody.append(node('p','结论：'+text)));
     if(match.target_priority)reasonBody.append(node('p','方向优先级：'+match.target_priority+' · '+(match.target_label||'')+'；这是规则归类，不是录用概率。'));
     (match.hard_reasons||[]).forEach(text=>reasonBody.append(node('p','不符合：'+text)));
@@ -115,11 +121,10 @@ function renderOpportunityJobs(){
     const qualificationStatus=qualification.status||'needs_confirmation';
     const canPrepare=verification.status==='verified_open'&&['A','B'].includes(match.grade)
       &&(category!=='internship'||qualificationStatus==='eligible')
-      &&match.global_work_eligibility?.status!=='unknown'
       &&pay.paid_status!=='unpaid'&&typeof job.jd==='string'&&job.jd.trim().length>=40
       &&!['submitted','assessment','interview','offer','rejected','withdrawn','closed'].includes(application.status);
     const prepare=node(application.resume_variant?'重新生成中英审阅材料':'生成中英审阅材料','secondary');prepare.type='button';prepare.disabled=!canPrepare;
-    prepare.title=canPrepare?'仅在本地生成简历与邮件草稿；不会发送或提交。':match.global_work_eligibility?.status==='unknown'?'海外工作许可、签证或远程雇佣资格需先核实。':'需完整 JD、当前官网核验、A/B 级匹配、符合的毕业资格及非无薪条件。';
+    prepare.title=canPrepare?(match.global_work_eligibility?.status==='unknown'?'可生成待审核材料；海外工作许可、签证或远程雇佣资格仍需核实。':'仅在本地生成简历与邮件草稿；不会发送或提交。'): '需完整 JD、当前官网核验、A/B 级匹配、符合的毕业资格及非无薪条件。';
     prepare.addEventListener('click',async()=>{
       prepare.disabled=true;prepare.textContent='正在生成本地审阅材料…';
       try{const result=await api('/api/opportunities/prepare',{job_keys:[job.job_key]});const first=result.jobs?.[0];$('discovery-run-status').textContent=first?'已为「'+first.company+' · '+first.title+'」生成本地审阅材料；未发送邮件、未提交申请。':'材料准备完成；未发送邮件、未提交申请。';await refresh();}

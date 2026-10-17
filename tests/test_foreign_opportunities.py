@@ -391,6 +391,18 @@ RWS is an equal opportunity employer.'''
         self.assertNotEqual(match['grade'], 'A')
         self.assertIn('已毕业', ' '.join(match['warnings']))
 
+    def test_capability_fit_is_separate_from_eligibility_and_has_project_trace(self):
+        job = jobs.parse(URL, payload('Responsibilities:\nMaintain a knowledge base, content operations and data annotation quality checks.\nRequired:\nBachelor degree.\nEnglish communication.'))
+        job.update(title='AI Content Operations Associate', location='Shanghai',
+                   verification={'status': 'verified_open', 'verified_at': '2026-10-16T00:00:00+00:00'})
+        match = jobs.matching(self.case, job)
+        self.assertIn(match['capability_match']['level'], {'A', 'B', 'C', 'U'})
+        self.assertIn('assessment_type', match['capability_match'])
+        self.assertIn('evidence_by_kind', match['capability_match'])
+        self.assertIn('eligibility', match)
+        self.assertIn('project_recommendations', match)
+        self.assertEqual(match['ready_to_apply'], False)
+
     def test_private_target_directions_override_generic_legacy_ranking(self):
         job = {'title': 'Operations Associate', 'jd': 'Required: Bachelor degree. Support onboarding.',
                'verification': {'status': 'verified_open'}}

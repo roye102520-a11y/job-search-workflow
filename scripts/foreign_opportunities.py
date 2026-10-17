@@ -523,6 +523,48 @@ def matching(case, job):
     global_work_status = {'status': 'not_applicable' if not global_scope else 'supported' if global_work_supported else 'unknown',
                           'reason': '逐项工作许可条件均有当前、地区化事实支持。' if global_work_supported else
                                     '尚无当前且对应工作地区的许可证据；需核实合法雇佣、担保、远程居住地或搬迁条件。'}
+    # Keep capability fit separate from application eligibility. A role can
+    # be a strong skills match while its work-authorisation, graduation,
+    # location, or compensation conditions remain unknown.
+    qualification_terms = re.compile(r'毕业|在校|在读|学籍|学生|student|年龄|age|工作许可|work authori[sz]ation|right to work|visa|签证|搬迁|relocat|地点|location|居住|reside|resident|country|locale|薪资|salary|compensation|雇佣|employment|每周|hours?\s+per\s+week', re.I)
+    capability_requirements = [item for item in requirements if not qualification_terms.search(str(item.get('text', '')))]
+    supported_capabilities = [item for item in capability_requirements if item.get('status') == 'supported']
+    partial_capabilities = [item for item in capability_requirements if item.get('status') == 'partial']
+    unknown_capabilities = [item for item in capability_requirements if item.get('status') == 'unknown']
+    capability_refs = list(dict.fromkeys(ref for item in supported_capabilities + partial_capabilities for ref in item.get('evidence_refs', [])))
+    if error or not capability_requirements:
+        capability_level = 'U'
+        capability_reason = '当前事实缓存或 JD 能力要求不足，无法完成能力适合度判断。'
+    elif supported_capabilities and not unknown_capabilities and not partial_capabilities:
+        capability_level = 'A'
+        capability_reason = '岗位能力要求均有直接事实证据支持。'
+    elif supported_capabilities or partial_capabilities:
+        capability_level = 'B' if supported_capabilities else 'C'
+        capability_reason = '部分能力有直接或部分证据；仍需核实缺口。'
+    else:
+        capability_level = 'C'
+        capability_reason = '当前没有足够的直接工作或项目证据覆盖岗位能力要求。'
+    capability_match = {
+        'level': capability_level,
+        'score': round(100 * len(supported_capabilities) / len(capability_requirements)) if capability_requirements else None,
+        'reason': capability_reason,
+        'supported': [item.get('text', '') for item in supported_capabilities],
+        'partial': [item.get('text', '') for item in partial_capabilities],
+        'gaps': [item.get('text', '') for item in partial_capabilities + unknown_capabilities],
+        'evidence_refs': capability_refs,
+        'evidence_by_kind': evidence_by_kind,
+        'assessment_type': '能力匹配规则分，非录用概率',
+    }
+    project_recommendations = []
+    try:
+        from project_matching import load_project_profiles, match_projects
+        profiles, profile_warnings = load_project_profiles(Path(case))
+        matching_projects = match_projects(evidence, jd, profiles, profile_warnings, route(jd, job['title']).get('family'))
+        for item in matching_projects.get('recommendations', [])[:3]:
+            project_recommendations.append({key: item.get(key) for key in ('id', 'name', 'score', 'why', 'evidence', 'source')})
+        capability_match['project_profile_warnings'] = matching_projects.get('profile_warnings', [])
+    except (ImportError, OSError, ValueError, TypeError, KeyError):
+        capability_match['project_profile_warnings'] = ['项目能力档案暂不可用；不使用无来源项目描述。']
     grade_reasons = []
     if excluded or source_status == 'closed' or internship_status['status'] == 'ineligible' or any(r['status'] == 'not_met' for r in blockers) or salary['status'] == 'not_met':
         grade = 'D'
@@ -551,6 +593,8 @@ def matching(case, job):
                 internship_growth=growth, work_mode=work_mode, posted_compensation=compensation,
                 global_work_eligibility=global_work_status,
                 evidence_by_kind=evidence_by_kind,
+                capability_match=capability_match,
+                project_recommendations=project_recommendations,
                 evidence_refs=direct_refs, evidence_error=error, routing=route(jd, job['title']),
                 eligibility='not_met' if grade == 'D' else 'needs_review', rules_version=MATCH_RULES_VERSION,
                 assessed_at=records.now(), ready_to_apply=False)
